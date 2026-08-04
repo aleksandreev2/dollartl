@@ -86,11 +86,15 @@ async def configure_telegram_webhook(
 
     identity = await bot.get_me()
     default_commands = [
-        BotCommand(command="start", description="Open the main menu"),
+        BotCommand(command="start", description="Open the home screen"),
+        BotCommand(command="latest", description="Show latest releases"),
+        BotCommand(command="browse", description="Browse all titles"),
+        BotCommand(command="search", description="Search titles: /search name"),
+        BotCommand(command="library", description="Open your followed titles"),
         BotCommand(command="menu", description="Open additional actions"),
-        BotCommand(command="cancel", description="Cancel the current action"),
         BotCommand(command="settings", description="Open settings"),
         BotCommand(command="help", description="Show help"),
+        BotCommand(command="cancel", description="Cancel the current action"),
     ]
     await bot.set_my_commands(default_commands, scope=BotCommandScopeDefault())
     await bot.set_my_commands(
