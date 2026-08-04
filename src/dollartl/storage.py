@@ -81,11 +81,19 @@ class S3Storage:
     def delete_many(self, keys: list[str]) -> None:
         for offset in range(0, len(keys), 1000):
             chunk = keys[offset : offset + 1000]
-            if chunk:
-                self.client.delete_objects(
-                    Bucket=self.bucket,
-                    Delete={"Objects": [{"Key": key} for key in chunk], "Quiet": True},
+            if not chunk:
+                continue
+            response = self.client.delete_objects(
+                Bucket=self.bucket,
+                Delete={"Objects": [{"Key": key} for key in chunk], "Quiet": True},
+            )
+            errors = response.get("Errors", [])
+            if errors:
+                summary = ", ".join(
+                    f"{item.get('Key', '?')}:{item.get('Code', 'Unknown')}"
+                    for item in errors[:20]
                 )
+                raise RuntimeError(f"S3 failed to delete one or more objects: {summary}")
 
     def exists(self, key: str) -> bool:
         try:
