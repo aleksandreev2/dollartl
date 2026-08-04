@@ -5,6 +5,7 @@ declare global {
         initData: string;
         ready(): void;
         expand(): void;
+        requestFullscreen?(): void;
         setHeaderColor?(color: string): void;
         setBackgroundColor?(color: string): void;
         showConfirm?(message: string, callback: (confirmed: boolean) => void): void;
@@ -43,6 +44,11 @@ export function initializeTelegram(): void {
   if (!webApp) return;
   webApp.ready();
   webApp.expand();
+  try {
+    webApp.requestFullscreen?.();
+  } catch {
+    // Older Telegram Desktop clients may expose the method without supporting it.
+  }
   webApp.setHeaderColor?.("#0d1017");
   webApp.setBackgroundColor?.("#0d1017");
 }
