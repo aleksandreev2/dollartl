@@ -1,8 +1,16 @@
 import { api } from "./api";
 import type { SuggestionItem } from "./types";
 
+const HTML_ESCAPES: Record<string, string> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  "'": "&#39;",
+  '"': "&quot;",
+};
+
 function escapeHtml(value: string): string {
-  return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character] || character);
+  return value.replace(/[&<>'"]/g, (character) => HTML_ESCAPES[character] || character);
 }
 
 async function openRaw(suggestionId: string): Promise<void> {
@@ -54,7 +62,10 @@ function mount(): void {
   drawer.className = "raw-review-drawer";
   drawer.innerHTML = '<div class="raw-review-head"><div><h2>Raw-файлы заявок</h2><small>Ссылки действуют 5 минут</small></div><button class="raw-review-close">Закрыть</button></div><div class="raw-review-list"></div>';
   document.body.append(launch, drawer);
-  launch.addEventListener("click", () => { drawer.classList.add("open"); void render(drawer.querySelector<HTMLElement>(".raw-review-list")!); });
+  launch.addEventListener("click", () => {
+    drawer.classList.add("open");
+    void render(drawer.querySelector<HTMLElement>(".raw-review-list")!);
+  });
   drawer.querySelector(".raw-review-close")?.addEventListener("click", () => drawer.classList.remove("open"));
 }
 
