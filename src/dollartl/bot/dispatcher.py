@@ -7,8 +7,10 @@ from aiogram.enums import ParseMode
 from dollartl.bot.admin import create_admin_router
 from dollartl.bot.admin_boosty import create_admin_boosty_router
 from dollartl.bot.admin_catalog import create_admin_catalog_router
+from dollartl.bot.admin_community import create_admin_community_router
 from dollartl.bot.boosty import create_boosty_router
 from dollartl.bot.catalog import create_catalog_router
+from dollartl.bot.community import create_community_router
 from dollartl.bot.handlers import create_user_router
 from dollartl.bot.middleware import AccessMiddleware
 from dollartl.config import Settings
@@ -33,7 +35,9 @@ def create_dispatcher(settings: Settings) -> Dispatcher:
     dispatcher.include_router(create_admin_router(settings))
     dispatcher.include_router(create_admin_catalog_router(settings))
     dispatcher.include_router(create_admin_boosty_router(settings))
+    dispatcher.include_router(create_admin_community_router(settings))
     dispatcher.include_router(create_boosty_router(settings))
+    dispatcher.include_router(create_community_router(settings))
     dispatcher.include_router(create_catalog_router(settings))
     dispatcher.include_router(create_user_router(settings))
     return dispatcher

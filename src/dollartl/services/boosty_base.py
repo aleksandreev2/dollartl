@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -66,7 +66,20 @@ class BoostyServiceBase:
         )
 
     async def can_download(self, user: User, admin_telegram_id: int) -> bool:
-        if user.telegram_id == admin_telegram_id or user.manual_download_access:
+        if user.telegram_id == admin_telegram_id:
+            return True
+        thanked = (
+            await self.session.execute(
+                text(
+                    "SELECT download_thanks_at FROM user_settings "
+                    "WHERE user_id = :user_id"
+                ),
+                {"user_id": user.id},
+            )
+        ).scalar_one_or_none()
+        if thanked is None:
+            return False
+        if user.manual_download_access:
             return True
         return (await self.get_status(user.id)).has_download_access
 

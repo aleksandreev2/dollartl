@@ -4,6 +4,8 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from dollartl.db.models import Release, Title
 
+DONATE_URL = "https://boosty.to/domnekromanta/single-payment/donation/818248/target?share=target_link"
+
 
 def adult_consent_keyboard(version: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
@@ -24,7 +26,7 @@ def home_keyboard() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="🆕 Latest Releases", callback_data="catalog:latest:0")],
             [InlineKeyboardButton(text="📚 Browse Titles", callback_data="catalog:list:0")],
             [
-                InlineKeyboardButton(text="💎 Boosty Access", callback_data="soon:boosty"),
+                InlineKeyboardButton(text="💎 Boosty Access", callback_data="boosty:menu"),
                 InlineKeyboardButton(text="📖 My Library", callback_data="catalog:library"),
             ],
             [
@@ -45,10 +47,17 @@ def settings_keyboard(new_title_announcements: bool) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
+                    text="👤 Display Name",
+                    callback_data="community:nickname",
+                )
+            ],
+            [
+                InlineKeyboardButton(
                     text=f"🔔 New Title Announcements: {status}",
                     callback_data="settings:toggle:new_titles",
                 )
             ],
+            [InlineKeyboardButton(text="💎 Boosty Account", callback_data="boosty:menu")],
             [InlineKeyboardButton(text="◀️ Main Menu", callback_data="menu:home")],
         ]
     )
@@ -133,7 +142,11 @@ def search_results_keyboard(titles: list[Title]) -> InlineKeyboardMarkup:
 
 
 def title_keyboard(
-    title: Title, releases: list[Release], *, followed: bool
+    title: Title,
+    releases: list[Release],
+    *,
+    followed: bool,
+    donate_url: str = DONATE_URL,
 ) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     for release in releases:
@@ -145,12 +158,34 @@ def title_keyboard(
                 )
             ]
         )
-    rows.append(
+    rows.extend(
         [
-            InlineKeyboardButton(
-                text="🔕 Unfollow Title" if followed else "🔔 Follow Title",
-                callback_data=f"catalog:follow:{title.id}",
-            )
+            [
+                InlineKeyboardButton(
+                    text="💬 Comments",
+                    callback_data=f"cm:ls:t:{title.id}:0",
+                ),
+                InlineKeyboardButton(
+                    text="⚠️ Report",
+                    callback_data=f"community:report:title:{title.id}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⭐ Translation Rating",
+                    callback_data=f"community:title_rating:{title.id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🔕 Unfollow Title" if followed else "🔔 Follow Title",
+                    callback_data=f"catalog:follow:{title.id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(text="💝 Donate", url=donate_url),
+                InlineKeyboardButton(text="Thank you.", callback_data="community:thanks"),
+            ],
         ]
     )
     if title.boosty_url:
@@ -178,15 +213,33 @@ def release_keyboard(
         rows.append(
             [
                 InlineKeyboardButton(
-                    text="💎 Boosty Access", callback_data="soon:boosty"
+                    text="💎 Boosty Access", callback_data="boosty:menu"
                 )
             ]
         )
-    rows.append(
+    rows.extend(
         [
-            InlineKeyboardButton(
-                text="◀️ Back to Title", callback_data=f"catalog:title:{release.title_id}"
-            )
+            [
+                InlineKeyboardButton(
+                    text="💬 Comments",
+                    callback_data=f"cm:ls:r:{release.id}:0",
+                ),
+                InlineKeyboardButton(
+                    text="⭐ Rate Translation",
+                    callback_data=f"community:rate:{release.id}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⚠️ Report a Problem",
+                    callback_data=f"community:report:release:{release.id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="◀️ Back to Title", callback_data=f"catalog:title:{release.title_id}"
+                )
+            ],
         ]
     )
     return InlineKeyboardMarkup(inline_keyboard=rows)

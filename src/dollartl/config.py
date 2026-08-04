@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     catalogue_page_size: int = 8
     channel_posts_enabled: bool = True
     worker_poll_seconds: int = 5
+    user_upload_max_bytes: int = 20 * 1024 * 1024
 
     boosty_enabled: bool = False
     boosty_api_base_url: str = "https://api.boosty.to"
@@ -58,6 +59,9 @@ class Settings(BaseSettings):
         "https://boosty.to/domnekromanta/purchase/4041120?ssource=DIRECT&share=subscription_link"
     )
     boosty_messages_url: str = "https://boosty.to/app/messages"
+    boosty_donate_url: str = (
+        "https://boosty.to/domnekromanta/single-payment/donation/818248/target?share=target_link"
+    )
     boosty_access_token: SecretStr = SecretStr("")
     boosty_refresh_token: SecretStr = SecretStr("")
     boosty_device_id: SecretStr = SecretStr("")
@@ -86,6 +90,7 @@ class Settings(BaseSettings):
         "ban_notice_interval_hours",
         "catalogue_page_size",
         "worker_poll_seconds",
+        "user_upload_max_bytes",
         "boosty_code_ttl_minutes",
         "boosty_verification_poll_seconds",
         "boosty_membership_sync_seconds",
