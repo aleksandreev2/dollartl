@@ -1,0 +1,106 @@
+import React, { FormEvent, useState } from "react";
+import { api, confirmAction } from "./api";
+import type { BroadcastItem, CommentItem, Overview, RatingItem, ReleaseItem, ReportItem, SuggestionItem, TitleItem, UserItem } from "./types";
+import { Badge, ErrorBox, Field, Header, Icon, Loading, Notice, bytes, date, useData, type IconName, type Section } from "./admin-ui";
+
+export function OverviewView({ onNavigate }: { onNavigate: (section: Section) => void }) {
+  const state = useData(() => api<Overview>("/overview"), []);
+  const cards: Array<[string, string, IconName]> = [
+    ["users", "Пользователи", "users"], ["active_vip", "Активные VIP", "diamond"],
+    ["grace", "Grace", "history"], ["published_titles", "Тайтлы", "book"],
+    ["releases", "Пакеты", "folder"], ["suggestions_pending", "Заявки", "sparkles"],
+    ["reports_open", "Жалобы", "alert"], ["ratings_new", "Оценки", "message"],
+    ["active_bans", "Баны", "shield"], ["broadcasts_running", "Рассылки", "send"],
+    ["boosty_errors", "Ошибки Boosty", "diamond"],
+  ];
+  const quick: Array<[Section, string, string, IconName]> = [
+    ["suggestions", "Проверить предложения", "Заявки и raw-файлы", "sparkles"],
+    ["community", "Разобрать жалобы", "Комментарии и оценки", "message"],
+    ["catalog", "Добавить публикацию", "Тайтл или пакет глав", "book"],
+    ["broadcasts", "Создать рассылку", "Отправка аудитории", "send"],
+  ];
+  return <section className="page">
+    <Header title="Обзор" description="Состояние бота и очереди, требующие внимания." action={<button className="with-icon" onClick={state.reload}><Icon name="refresh"/>Обновить</button>} />
+    {state.error && <ErrorBox text={state.error}/>} 
+    {state.loading || !state.data ? <Loading/> : <div className="metrics">{cards.map(([key, label, icon]) => <article key={key}><span className="metric-icon"><Icon name={icon}/></span><div><span>{label}</span><strong>{state.data?.[key] || 0}</strong></div></article>)}</div>}
+    <div className="section-heading"><div><h2>Быстрые действия</h2><p>Основные рабочие сценарии без поиска по меню.</p></div></div>
+    <div className="quick-grid">{quick.map(([target, title, description, icon]) => <button key={target} className="quick-action" onClick={() => onNavigate(target)}><span><Icon name={icon}/></span><div><strong>{title}</strong><small>{description}</small></div><Icon name="chevron"/></button>)}</div>
+  </section>;
+}
+
+export function CatalogView() {
+  const titles = useData(() => api<TitleItem[]>("/titles"), []);
+  const releases = useData(() => api<ReleaseItem[]>("/releases"), []);
+  const [notice, setNotice] = useState("");
+  async function createTitle(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); const form = new FormData(event.currentTarget);
+    try { await api("/titles", { method: "POST", body: JSON.stringify({ english_title: form.get("english_title"), original_title: form.get("original_title"), original_language: form.get("original_language"), publication_status: form.get("publication_status"), boosty_url: form.get("boosty_url") || null, description: form.get("description") || "", aliases: [] }) }); event.currentTarget.reset(); await titles.reload(); setNotice("Тайтл создан."); }
+    catch (cause) { setNotice(cause instanceof Error ? cause.message : String(cause)); }
+  }
+  async function createRelease(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); const form = new FormData(event.currentTarget);
+    try { await api("/releases", { method: "POST", body: JSON.stringify({ title_id: form.get("title_id"), chapter_start: Number(form.get("chapter_start")), chapter_end: Number(form.get("chapter_end")), boosty_url: form.get("boosty_url") || null }) }); event.currentTarget.reset(); await releases.reload(); setNotice("Пакет создан. Загрузите PDF и EPUB."); }
+    catch (cause) { setNotice(cause instanceof Error ? cause.message : String(cause)); }
+  }
+  async function publish(path: string, question: string) {
+    if (!(await confirmAction(question))) return;
+    try { await api(path, { method: "POST" }); await Promise.all([titles.reload(), releases.reload()]); setNotice("Опубликовано и поставлено в очередь уведомлений."); }
+    catch (cause) { setNotice(cause instanceof Error ? cause.message : String(cause)); }
+  }
+  async function upload(id: string, kind: string, file: File) {
+    const body = new FormData(); body.set("file", file);
+    try { await api(`/releases/${id}/files/${kind}`, { method: "POST", body }); await releases.reload(); setNotice(`${kind.toUpperCase()} загружен и проверен.`); }
+    catch (cause) { setNotice(cause instanceof Error ? cause.message : String(cause)); }
+  }
+  return <section className="page"><Header title="Тайтлы и пакеты" description="Создание, проверка файлов и публикация без CLI." />{notice && <Notice text={notice}/>}<div className="columns"><form className="panel form" onSubmit={createTitle}><h3>Новый тайтл</h3><Field label="Английское название"><input name="english_title" required/></Field><Field label="Оригинальное название"><input name="original_title" required/></Field><Field label="Язык"><input name="original_language" required/></Field><Field label="Статус"><select name="publication_status"><option value="ongoing">Продолжается</option><option value="completed">Завершён</option><option value="hiatus">Пауза</option></select></Field><Field label="Boosty URL"><input name="boosty_url" type="url"/></Field><Field label="Описание"><textarea name="description" rows={4}/></Field><button className="primary">Создать</button></form><form className="panel form" onSubmit={createRelease}><h3>Новый пакет</h3><Field label="Тайтл"><select name="title_id" required><option value="">Выберите</option>{titles.data?.map(item => <option key={item.id} value={item.id}>{item.english_title}</option>)}</select></Field><div className="row"><Field label="С главы"><input name="chapter_start" type="number" min="0" required/></Field><Field label="По главу"><input name="chapter_end" type="number" min="0" required/></Field></div><Field label="Boosty URL"><input name="boosty_url" type="url"/></Field><button className="primary">Создать пакет</button></form></div><div className="panel"><h3>Тайтлы</h3>{titles.loading ? <Loading/> : titles.data?.map(item => <div className="item" key={item.id}><div><strong>{item.english_title}</strong><small>{item.original_title}</small></div><div><Badge value={item.is_published ? "completed" : "draft"}/>{!item.is_published && <button onClick={() => publish(`/titles/${item.id}/publish`, "Опубликовать тайтл?")}>Опубликовать</button>}</div></div>)}</div><div className="panel"><h3>Пакеты</h3>{releases.loading ? <Loading/> : releases.data?.map(item => <div className="item release" key={item.id}><div><strong>{item.chapter_label}</strong><small>{item.validation_message || "Проверка ожидается"}</small><Badge value={item.validation_status}/></div><div className="actions"><label>PDF<input hidden type="file" accept=".pdf" onChange={(event: React.ChangeEvent<HTMLInputElement>) => event.target.files?.[0] && upload(item.id, "pdf", event.target.files[0])}/></label><label>EPUB<input hidden type="file" accept=".epub" onChange={(event: React.ChangeEvent<HTMLInputElement>) => event.target.files?.[0] && upload(item.id, "epub", event.target.files[0])}/></label>{!item.is_published && <button className="primary" onClick={() => publish(`/releases/${item.id}/publish`, "Опубликовать пакет?")}>Опубликовать</button>}</div></div>)}</div></section>;
+}
+
+export function UsersView() {
+  const [query, setQuery] = useState("");
+  const state = useData(() => api<UserItem[]>(`/users?query=${encodeURIComponent(query)}`), [query]);
+  const [notice, setNotice] = useState("");
+  async function ban(item: UserItem) { const days = window.prompt("Срок в днях или permanent:", "7"); if (!days) return; const reason = window.prompt("Публичная причина:"); if (!reason) return; const permanent = days.toLowerCase() === "permanent"; try { await api(`/users/${item.id}/ban`, { method: "POST", body: JSON.stringify({ ban_type: permanent ? "permanent" : "temporary", public_reason: reason, expires_at: permanent ? null : new Date(Date.now() + Number(days) * 86400000).toISOString() }) }); setNotice("Пользователь заблокирован."); } catch (cause) { setNotice(cause instanceof Error ? cause.message : String(cause)); } }
+  async function unban(item: UserItem) { await api(`/users/${item.id}/unban`, { method: "POST" }); setNotice("Бан снят."); await state.reload(); }
+  return <section className="page"><Header title="Пользователи" description="Поиск по Telegram ID, username и Anonymous ID." />{notice && <Notice text={notice}/>}<div className="toolbar"><label className="toolbar-search"><Icon name="search"/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ID, username или Anonymous 1"/></label><button className="with-icon" onClick={state.reload}><Icon name="refresh"/>Обновить</button></div>{state.loading ? <Loading/> : <div className="panel">{state.data?.map(item => <div className="item" key={item.id}><div><strong>{item.display_name || `Anonymous ${item.anonymous_id}`}</strong><small>{item.telegram_username ? `@${item.telegram_username}` : "без username"} · {item.telegram_id}</small></div><div><Badge value={item.boosty_status}/><button onClick={() => ban(item)}>Бан</button><button onClick={() => unban(item)}>Снять</button></div></div>)}</div>}</section>;
+}
+
+export function SuggestionsView() {
+  const [filter, setFilter] = useState("under_review");
+  const state = useData(() => api<SuggestionItem[]>(`/suggestions?status=${filter}`), [filter]);
+  const [notice, setNotice] = useState("");
+  async function decide(item: SuggestionItem, status: string) { let public_reason: string | null = null; let linked_title_id: string | null = null; if (status === "rejected") { public_reason = window.prompt("Публичная причина отказа:"); if (!public_reason) return; } if (status === "translated") { linked_title_id = window.prompt("UUID опубликованного тайтла:"); if (!linked_title_id) return; } try { await api(`/suggestions/${item.id}/decision`, { method: "POST", body: JSON.stringify({ status, public_reason, internal_note: window.prompt("Внутренняя заметка:") || null, linked_title_id }) }); await state.reload(); setNotice("Статус обновлён, пользователь уведомлён."); } catch (cause) { setNotice(cause instanceof Error ? cause.message : String(cause)); } }
+  return <section className="page"><Header title="Предложения тайтлов" description="Raw-файл обязателен для каждой отправленной заявки." />{notice && <Notice text={notice}/>}<div className="toolbar"><select value={filter} onChange={(event) => setFilter(event.target.value)}><option value="under_review">На проверке</option><option value="accepted">Принятые</option><option value="translated">Переведённые</option><option value="rejected">Отклонённые</option><option value="all">Все</option></select><button className="with-icon" onClick={state.reload}><Icon name="refresh"/>Обновить</button></div>{state.loading ? <Loading/> : <div className="cards">{state.data?.map(item => <article key={item.id}><div className="item-head"><strong>{item.original_title}</strong><Badge value={item.status}/></div><p>Язык: {item.detected_language || "—"} · главы: {item.chapter_count || "—"} · scope 1–{item.requested_chapter_end || "—"}</p><p><b>Raw:</b> {item.raw_file ? `${item.raw_file.filename} · ${bytes(item.raw_file.size_bytes)} · ${item.raw_file.validation_status}` : "ОТСУТСТВУЕТ"}</p>{item.duplicate_review_required && <Notice text="Возможный дубль"/>}<small>Anonymous {item.user.anonymous_id} · {item.user.telegram_id}</small>{item.status === "under_review" && <div className="actions"><button onClick={() => decide(item, "accepted")}>Принять</button><button onClick={() => decide(item, "rejected")}>Отклонить</button><button className="primary" onClick={() => decide(item, "translated")}>Переведено</button></div>}</article>)}</div>}</section>;
+}
+
+export function CommunityView() {
+  const comments = useData(() => api<CommentItem[]>("/comments"), []);
+  const ratings = useData(() => api<RatingItem[]>("/ratings"), []);
+  const reports = useData(() => api<ReportItem[]>("/reports"), []);
+  const [tab, setTab] = useState("comments");
+  async function moderate(id: string, deleted: boolean) { await api(`/comments/${id}/moderate`, { method: "POST", body: JSON.stringify({ deleted }) }); await comments.reload(); }
+  async function rate(id: string, status: string) { await api(`/ratings/${id}/workflow`, { method: "POST", body: JSON.stringify({ status, note: window.prompt("Заметка:") || null }) }); await ratings.reload(); }
+  async function report(id: string, status: string) { await api(`/reports/${id}`, { method: "POST", body: JSON.stringify({ status, reply: window.prompt("Ответ пользователю:") || null }) }); await reports.reload(); }
+  return <section className="page"><Header title="Комментарии, оценки и жалобы" description="Постмодерация и рабочие статусы обратной связи." /><div className="tabs"><button className={tab === "comments" ? "active" : ""} onClick={() => setTab("comments")}>Комментарии</button><button className={tab === "ratings" ? "active" : ""} onClick={() => setTab("ratings")}>Оценки</button><button className={tab === "reports" ? "active" : ""} onClick={() => setTab("reports")}>Жалобы</button></div>{tab === "comments" && <div className="cards">{comments.data?.map(item => <article key={item.id}><strong>Anonymous {item.anonymous_id}</strong><p>{item.public_body}</p><small>{date(item.created_at)} · замен {item.replacement_count}</small><div className="actions"><button onClick={() => moderate(item.id, !item.is_deleted)}>{item.is_deleted ? "Восстановить" : "Удалить"}</button></div></article>)}</div>}{tab === "ratings" && <div className="cards">{ratings.data?.map(item => <article key={item.id}><div className="item-head"><strong>{item.score}/5 · {item.release_label}</strong><Badge value={item.status}/></div><p>{item.feedback}</p><div className="actions"><button onClick={() => rate(item.id, "reviewed")}>Проверено</button><button onClick={() => rate(item.id, "fixed")}>Исправлено</button></div></article>)}</div>}{tab === "reports" && <div className="cards">{reports.data?.map(item => <article key={item.id}><div className="item-head"><strong>{item.category}</strong><Badge value={item.status}/></div><p>{item.description}</p><div className="actions"><button onClick={() => report(item.id, "in_progress")}>В работу</button><button onClick={() => report(item.id, "resolved")}>Решена</button></div></article>)}</div>}</section>;
+}
+
+export function BoostyView() { const state = useData(() => api<Record<string, unknown>>("/boosty"), []); return <section className="page"><Header title="Boosty" description="Статусы подписок и последняя синхронизация." action={<button className="with-icon" onClick={state.reload}><Icon name="refresh"/>Обновить</button>} />{state.loading ? <Loading/> : <pre>{JSON.stringify(state.data, null, 2)}</pre>}</section>; }
+
+export function BroadcastsView() {
+  const state = useData(() => api<BroadcastItem[]>("/broadcasts"), []);
+  const [created, setCreated] = useState("");
+  const [notice, setNotice] = useState("");
+  async function create(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const form = new FormData(event.currentTarget); try { const item = await api<{ id: string }>("/broadcasts", { method: "POST", body: JSON.stringify({ audience_type: form.get("audience_type"), title_id: form.get("title_id") || null, text: form.get("text"), button_text: form.get("button_text") || null, button_url: form.get("button_url") || null, scheduled_at: form.get("scheduled_at") ? new Date(String(form.get("scheduled_at"))).toISOString() : null, send_now: form.get("send_now") === "on", selected_user_ids: [] }) }); setCreated(item.id); setNotice(`Рассылка создана: ${item.id}`); await state.reload(); } catch (cause) { setNotice(cause instanceof Error ? cause.message : String(cause)); } }
+  async function photo(file: File) { if (!created) { setNotice("Сначала создайте рассылку."); return; } const body = new FormData(); body.set("file", file); await api(`/broadcasts/${created}/photo`, { method: "POST", body }); setNotice("Фото прикреплено."); }
+  return <section className="page"><Header title="Ручные рассылки" description="Текст, фото, кнопка, аудитория, расписание и повторные попытки." />{notice && <Notice text={notice}/>}<div className="columns"><form className="panel form" onSubmit={create}><Field label="Аудитория"><select name="audience_type"><option value="all">Все</option><option value="active_vip">Активные VIP</option><option value="vip_grace">VIP + Grace</option><option value="standard">Standard</option><option value="title_followers">Подписчики тайтла</option></select></Field><Field label="UUID тайтла"><input name="title_id"/></Field><Field label="Текст"><textarea name="text" rows={7} required/></Field><div className="row"><Field label="Текст кнопки"><input name="button_text"/></Field><Field label="URL"><input name="button_url" type="url"/></Field></div><Field label="Дата отправки"><input name="scheduled_at" type="datetime-local"/></Field><label className="checkbox"><input name="send_now" type="checkbox"/> Отправить сразу</label><button className="primary">Создать</button><label className="upload">Фото<input hidden type="file" accept="image/*" onChange={(event: React.ChangeEvent<HTMLInputElement>) => event.target.files?.[0] && photo(event.target.files[0])}/></label></form><div className="panel"><h3>Последние рассылки</h3><div className="cards compact">{state.data?.map(item => <article key={item.id}><div className="item-head"><strong>{item.text.slice(0, 100)}</strong><Badge value={item.status}/></div><small>{item.sent_count}/{item.total_count}, ошибок {item.failed_count} · {date(item.created_at)}</small></article>)}</div></div></div></section>;
+}
+
+export function GenericView({ section }: { section: "channel" | "files" | "audit" | "settings" }) {
+  const state = useData(() => api<unknown>(`/${section}`), [section]);
+  const names: Record<typeof section, [string, string]> = {
+    channel: ["Telegram-канал", "Публикации и статистика канала."],
+    files: ["Файлы и кэш", "Версии PDF/EPUB, checksum и Telegram file_id."],
+    audit: ["Журнал действий", "Неизменяемая история операций."],
+    settings: ["Системные настройки", "Runtime overrides и диагностические значения."],
+  };
+  return <section className="page"><Header title={names[section][0]} description={names[section][1]} action={<button className="with-icon" onClick={state.reload}><Icon name="refresh"/>Обновить</button>} />{state.error && <ErrorBox text={state.error}/>} {state.loading ? <Loading/> : <pre>{JSON.stringify(state.data, null, 2)}</pre>}</section>;
+}
