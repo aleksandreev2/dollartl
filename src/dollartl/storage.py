@@ -58,7 +58,7 @@ class S3Storage:
             region=settings.effective_backup_s3_region,
             access_key_id=settings.effective_backup_s3_access_key_id,
             secret_access_key=settings.effective_backup_s3_secret_access_key,
-            force_path_style=settings.backup_s3_force_path_style,
+            force_path_style=settings.effective_backup_s3_force_path_style,
         )
 
     def upload_fileobj(self, fileobj: BinaryIO, key: str, content_type: str) -> StoredObject:
