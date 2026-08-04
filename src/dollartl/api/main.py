@@ -6,6 +6,7 @@ from fastapi import FastAPI, Header, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+from dollartl.admin.raw_router import router as raw_admin_router
 from dollartl.admin.router import router as admin_router
 from dollartl.bot.dispatcher import create_bot, create_dispatcher
 from dollartl.config import get_settings
@@ -38,6 +39,7 @@ app.add_middleware(
     allow_headers=["Content-Type", "X-Telegram-Init-Data", "X-Admin-Development-Id"],
 )
 app.include_router(admin_router)
+app.include_router(raw_admin_router)
 
 
 @app.get("/health/live", include_in_schema=False)
