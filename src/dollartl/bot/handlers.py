@@ -38,7 +38,7 @@ def create_user_router(settings: Settings) -> Router:
             )
         await bot.send_message(
             callback.from_user.id,
-            "Navigation is ready below. Use <code>/cancel</code> at any time to stop the current action.",
+            "Quick navigation is pinned below. Use <code>/cancel</code> at any time.",
             reply_markup=persistent_navigation_keyboard(),
         )
         if pending_token:
@@ -61,11 +61,11 @@ def create_user_router(settings: Settings) -> Router:
         message: Message, db_user: User, command: CommandObject, bot: Bot
     ) -> None:
         token = (command.args or "").strip()
+        await message.answer(
+            "Quick navigation is pinned below.",
+            reply_markup=persistent_navigation_keyboard(),
+        )
         if token:
-            await message.answer(
-                "Navigation is ready below.",
-                reply_markup=persistent_navigation_keyboard(),
-            )
             opened = await send_deep_link_target(
                 bot=bot,
                 chat_id=message.chat.id,
@@ -77,7 +77,7 @@ def create_user_router(settings: Settings) -> Router:
                 return
         await message.answer(
             await home_text(db_user, settings),
-            reply_markup=persistent_navigation_keyboard(),
+            reply_markup=home_keyboard(),
         )
 
     @router.callback_query(F.data == "menu:home")
@@ -137,7 +137,7 @@ def create_user_router(settings: Settings) -> Router:
     async def fallback(message: Message, db_user: User) -> None:
         await message.answer(
             await home_text(db_user, settings),
-            reply_markup=persistent_navigation_keyboard(),
+            reply_markup=home_keyboard(),
         )
 
     return router
@@ -153,7 +153,7 @@ async def home_text(user: User, settings: Settings) -> str:
         f"Account: <b>{user.anonymous_name}</b>\n"
         f"Account level: <b>{account}</b>\n"
         f"Boosty access: <b>{access}</b>\n\n"
-        "Use the navigation buttons below for the main sections. Open <b>Menu</b> for Boosty, suggestions, settings and help."
+        "Browse translated titles, follow new chapter packages and open your library."
     )
 
 
