@@ -3,9 +3,12 @@ set -Eeuo pipefail
 
 : "${POSTGRES_DSN:?POSTGRES_DSN is required}"
 BACKUP_FILE="${1:?Usage: db_import.sh path/to/backup.dtlbak}"
+BACKUP_DIR="$(cd "$(dirname "$BACKUP_FILE")" && pwd)"
+BACKUP_NAME="$(basename "$BACKUP_FILE")"
+BACKUP_FILE="$BACKUP_DIR/$BACKUP_NAME"
 
 if [[ -f "$BACKUP_FILE.sha256" ]]; then
-  sha256sum --check "$BACKUP_FILE.sha256"
+  (cd "$BACKUP_DIR" && sha256sum --check "$BACKUP_NAME.sha256")
 fi
 
 TEMP_DIR="$(mktemp -d -t dollartl-db-import-XXXXXX)"
