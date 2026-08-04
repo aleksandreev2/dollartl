@@ -28,8 +28,10 @@ python -m dollartl.resilience.backup_cli encrypt "$PLAIN_DUMP" "$ENCRYPTED_DUMP"
   > "$BUNDLE_DIR/database-encryption.json"
 python scripts/storage_export.py --output "$BUNDLE_DIR/storage-manifest.json"
 
-sha256sum "$ENCRYPTED_DUMP" "$BUNDLE_DIR/storage-manifest.json" \
-  > "$BUNDLE_DIR/SHA256SUMS"
+(
+  cd "$BUNDLE_DIR"
+  sha256sum database.dtlbak storage-manifest.json database-encryption.json > SHA256SUMS
+)
 
 cat > "$BUNDLE_DIR/README.txt" <<EOF
 Dollar TL portable migration bundle
@@ -39,7 +41,7 @@ Files:
 - database.dtlbak: AES-256-GCM encrypted PostgreSQL custom archive
 - database-encryption.json: encryption/checksum metadata
 - storage-manifest.json: source S3 object inventory
-- SHA256SUMS: bundle checksums
+- SHA256SUMS: relocatable bundle checksums
 
 The destination requires the same BACKUP_ENCRYPTION_KEY.
 Transfer S3 objects with scripts/storage_transfer.py before enabling the destination bot.
