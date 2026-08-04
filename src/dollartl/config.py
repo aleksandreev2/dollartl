@@ -40,8 +40,25 @@ class Settings(BaseSettings):
     s3_backup_bucket: str = "dollartl-backups"
     s3_force_path_style: bool = True
 
+    backup_enabled: bool = False
+    backup_replication_enabled: bool = True
     backup_encryption_key: SecretStr = SecretStr("")
     backup_cron: str = "0 4 * * 0"
+    backup_interval_hours: int = 168
+    backup_retention_count: int = 8
+    backup_retention_days: int = 90
+    backup_temp_dir: str = "/tmp/dollartl-backups"
+    backup_temp_retention_hours: int = 24
+    backup_poll_seconds: int = 60
+    backup_telegram_max_bytes: int = 45 * 1024 * 1024
+    backup_download_url_seconds: int = 24 * 60 * 60
+    backup_verify_dsn: SecretStr = SecretStr("")
+    backup_s3_endpoint_url: str | None = None
+    backup_s3_region: str = "auto"
+    backup_s3_access_key_id: SecretStr = SecretStr("")
+    backup_s3_secret_access_key: SecretStr = SecretStr("")
+    backup_s3_force_path_style: bool = True
+
     app_timezone: str = "Asia/Yerevan"
 
     adult_consent_version: int = 1
@@ -49,6 +66,12 @@ class Settings(BaseSettings):
     catalogue_page_size: int = 8
     channel_posts_enabled: bool = True
     worker_poll_seconds: int = 5
+    worker_leader_lock_seconds: int = 30
+    worker_heartbeat_seconds: int = 20
+    worker_stale_seconds: int = 180
+    cleanup_interval_seconds: int = 3600
+    webhook_receipt_stale_seconds: int = 300
+    webhook_receipt_retention_days: int = 30
     user_upload_max_bytes: int = 20 * 1024 * 1024
     broadcast_batch_size: int = 20
     broadcast_send_delay_seconds: float = 0.06
@@ -95,11 +118,16 @@ class Settings(BaseSettings):
 
     @field_validator(
         "adult_consent_version", "ban_notice_interval_hours", "catalogue_page_size",
-        "worker_poll_seconds", "user_upload_max_bytes", "admin_init_data_ttl_seconds",
-        "admin_upload_max_bytes", "broadcast_batch_size", "boosty_code_ttl_minutes",
-        "boosty_verification_poll_seconds", "boosty_membership_sync_seconds", "boosty_grace_days",
-        "boosty_request_timeout_seconds", "boosty_contacts_limit", "boosty_subscribers_page_size",
-        "boosty_max_subscriber_pages", "boosty_circuit_breaker_failures", "boosty_circuit_breaker_seconds",
+        "worker_poll_seconds", "worker_leader_lock_seconds", "worker_heartbeat_seconds",
+        "worker_stale_seconds", "cleanup_interval_seconds", "webhook_receipt_stale_seconds",
+        "webhook_receipt_retention_days", "user_upload_max_bytes", "admin_init_data_ttl_seconds",
+        "admin_upload_max_bytes", "broadcast_batch_size", "backup_interval_hours",
+        "backup_retention_count", "backup_retention_days", "backup_temp_retention_hours",
+        "backup_poll_seconds", "backup_telegram_max_bytes", "backup_download_url_seconds",
+        "boosty_code_ttl_minutes", "boosty_verification_poll_seconds",
+        "boosty_membership_sync_seconds", "boosty_grace_days", "boosty_request_timeout_seconds",
+        "boosty_contacts_limit", "boosty_subscribers_page_size", "boosty_max_subscriber_pages",
+        "boosty_circuit_breaker_failures", "boosty_circuit_breaker_seconds",
         "suggestion_rules_version", "suggestion_standard_monthly_limit", "suggestion_vip_monthly_limit",
         "suggestion_standard_chapter_limit", "suggestion_source_max", "suggestion_archive_max_entries",
         "suggestion_archive_max_unpacked_bytes",
@@ -124,6 +152,22 @@ class Settings(BaseSettings):
     @property
     def normalized_bot_username(self) -> str:
         return self.telegram_bot_username.lstrip("@")
+
+    @property
+    def effective_backup_s3_endpoint_url(self) -> str | None:
+        return self.backup_s3_endpoint_url or self.s3_endpoint_url
+
+    @property
+    def effective_backup_s3_region(self) -> str:
+        return self.backup_s3_region or self.s3_region
+
+    @property
+    def effective_backup_s3_access_key_id(self) -> str:
+        return self.backup_s3_access_key_id.get_secret_value() or self.s3_access_key_id.get_secret_value()
+
+    @property
+    def effective_backup_s3_secret_access_key(self) -> str:
+        return self.backup_s3_secret_access_key.get_secret_value() or self.s3_secret_access_key.get_secret_value()
 
 
 @lru_cache
