@@ -8,3 +8,9 @@ def test_webhook_url_is_normalized() -> None:
 
 def test_admin_id_default() -> None:
     assert Settings().admin_telegram_id == 2096975784
+
+
+def test_access_defaults() -> None:
+    settings = Settings()
+    assert settings.adult_consent_version == 1
+    assert settings.ban_notice_interval_hours == 6

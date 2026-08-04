@@ -24,7 +24,9 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://dollartl:dollartl@localhost:5432/dollartl"
     database_url_sync: str = "postgresql+psycopg://dollartl:dollartl@localhost:5432/dollartl"
-    postgres_dsn: SecretStr = SecretStr("postgresql://dollartl:dollartl@localhost:5432/dollartl")
+    postgres_dsn: SecretStr = SecretStr(
+        "postgresql://dollartl:dollartl@localhost:5432/dollartl"
+    )
     redis_url: str = "redis://localhost:6379/0"
 
     s3_endpoint_url: str | None = None
@@ -38,12 +40,22 @@ class Settings(BaseSettings):
     backup_encryption_key: SecretStr = SecretStr("")
     backup_cron: str = "0 4 * * 0"
     app_timezone: str = "Asia/Yerevan"
+
+    adult_consent_version: int = 1
+    ban_notice_interval_hours: int = 6
     maintenance_mode: bool = False
 
     @field_validator("app_timezone")
     @classmethod
     def validate_timezone(cls, value: str) -> str:
         ZoneInfo(value)
+        return value
+
+    @field_validator("adult_consent_version", "ban_notice_interval_hours")
+    @classmethod
+    def validate_positive_integer(cls, value: int) -> int:
+        if value < 1:
+            raise ValueError("value must be positive")
         return value
 
     @property

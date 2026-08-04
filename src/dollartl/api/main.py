@@ -12,7 +12,7 @@ from dollartl.logging import configure_logging
 settings = get_settings()
 configure_logging(settings.log_level)
 bot = create_bot(settings) if settings.telegram_bot_token.get_secret_value() else None
-dispatcher = create_dispatcher()
+dispatcher = create_dispatcher(settings)
 
 
 @asynccontextmanager
@@ -23,7 +23,7 @@ async def lifespan(_: FastAPI):
     await engine.dispose()
 
 
-app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
+app = FastAPI(title=settings.app_name, version="0.2.0", lifespan=lifespan)
 
 
 @app.get("/health/live", include_in_schema=False)
