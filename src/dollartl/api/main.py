@@ -18,6 +18,7 @@ from dollartl.admin.raw_router import router as raw_admin_router
 from dollartl.admin.resilience_router import router as resilience_admin_router
 from dollartl.admin.router import router as admin_router
 from dollartl.admin.version_router import router as version_admin_router
+from dollartl.admin.workbench_router import router as workbench_admin_router
 from dollartl.api.bootstrap import configure_telegram_webhook, verify_storage
 from dollartl.bot.dispatcher import create_bot, create_dispatcher
 from dollartl.config import get_settings
@@ -160,6 +161,7 @@ app.include_router(version_admin_router)
 app.include_router(admin_router)
 app.include_router(raw_admin_router)
 app.include_router(resilience_admin_router)
+app.include_router(workbench_admin_router)
 
 
 @app.get("/health/live", include_in_schema=False)

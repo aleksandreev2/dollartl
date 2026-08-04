@@ -4,18 +4,24 @@ import { api, initializeTelegram } from "./api";
 import type { SessionInfo } from "./types";
 import { Icon, Loading, sections, useData, type Section } from "./admin-ui";
 import {
-  BoostyView,
   BroadcastsView,
   CatalogView,
   CommunityView,
-  GenericView,
   SuggestionsView,
   UsersView,
 } from "./admin-views";
 import { CommandPalette, OperationsOverview } from "./admin-operations";
+import {
+  AuditWorkbenchView,
+  BoostyWorkbenchView,
+  ChannelWorkbenchView,
+  FilesWorkbenchView,
+  SettingsWorkbenchView,
+} from "./admin-workbench";
 import "./styles.css";
 import "./admin-ux.css";
 import "./admin-operations.css";
+import "./admin-workbench.css";
 
 function App() {
   const [section, setSection] = useState<Section>("overview");
@@ -84,12 +90,12 @@ function App() {
     users: <UsersView />,
     suggestions: <SuggestionsView />,
     community: <CommunityView />,
-    boosty: <BoostyView />,
+    boosty: <BoostyWorkbenchView />,
     broadcasts: <BroadcastsView />,
-    channel: <GenericView section="channel" />,
-    files: <GenericView section="files" />,
-    audit: <GenericView section="audit" />,
-    settings: <GenericView section="settings" />,
+    channel: <ChannelWorkbenchView />,
+    files: <FilesWorkbenchView />,
+    audit: <AuditWorkbenchView />,
+    settings: <SettingsWorkbenchView />,
   };
 
   return (
@@ -103,7 +109,7 @@ function App() {
               </span>
               <div>
                 <b>Dollar TL</b>
-                <small>Admin v{session.data.version}</small>
+                <small>Operations Center</small>
               </div>
             </div>
             <button
