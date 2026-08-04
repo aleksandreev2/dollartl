@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from uuid import UUID
 
 from aiogram import F, Router
@@ -30,7 +28,7 @@ from dollartl.services.catalog import CatalogService
 async def _show_home(message: Message, db_user: User, settings: Settings) -> None:
     await message.answer(
         await home_text(db_user, settings),
-        reply_markup=persistent_navigation_keyboard(),
+        reply_markup=home_keyboard(),
     )
 
 
@@ -100,6 +98,10 @@ def create_navigation_router(settings: Settings) -> Router:
             else "There is no active action to cancel."
         )
         await message.answer(text, reply_markup=persistent_navigation_keyboard())
+        await message.answer(
+            "Choose what to do next.",
+            reply_markup=home_keyboard(),
+        )
 
     @router.message(Command("menu"))
     @router.message(F.text == NAV_MENU)
