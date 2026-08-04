@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -10,6 +11,7 @@ from aiogram.types import Update
 from fastapi import FastAPI, Header, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
 from dollartl.admin.raw_router import router as raw_admin_router
@@ -28,6 +30,9 @@ configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 bot = create_bot(settings) if settings.telegram_bot_token.get_secret_value() else None
 dispatcher = create_dispatcher(settings)
+admin_web_dir = Path(os.getenv("ADMIN_WEB_DIR", "/app/admin-web-dist"))
+admin_web_verified = False
+_ADMIN_ASSET_RE = re.compile(r"(?:src|href)=[\"'](/admin/assets/[^\"'?#]+)[\"']")
 
 
 def api_instance_id() -> str:
@@ -37,6 +42,46 @@ def api_instance_id() -> str:
         or os.getenv("HOSTNAME")
         or uuid4().hex
     )[:120]
+
+
+async def verify_admin_web(app: FastAPI) -> None:
+    global admin_web_verified
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://startup.local") as client:
+        index_response = await client.get("/admin/")
+        index_response.raise_for_status()
+        content_type = index_response.headers.get("content-type", "")
+        if not content_type.startswith("text/html"):
+            raise RuntimeError(
+                f"Embedded admin index returned unexpected content type: {content_type}"
+            )
+
+        asset_paths = sorted(set(_ADMIN_ASSET_RE.findall(index_response.text)))
+        if not asset_paths:
+            raise RuntimeError("Embedded admin index does not reference built assets")
+
+        for asset_path in asset_paths:
+            asset_response = await client.get(asset_path)
+            asset_response.raise_for_status()
+            if not asset_response.content:
+                raise RuntimeError(f"Embedded admin asset is empty: {asset_path}")
+            asset_content_type = asset_response.headers.get("content-type", "")
+            if asset_path.endswith(".css") and not asset_content_type.startswith("text/css"):
+                raise RuntimeError(
+                    f"Embedded CSS asset has unexpected content type: {asset_content_type}"
+                )
+            if asset_path.endswith(".js") and "javascript" not in asset_content_type:
+                raise RuntimeError(
+                    f"Embedded JavaScript asset has unexpected content type: "
+                    f"{asset_content_type}"
+                )
+
+    admin_web_verified = True
+    logger.info(
+        "admin_web_self_check_ok",
+        extra={"asset_count": len(asset_paths), "path": str(admin_web_dir)},
+    )
 
 
 async def api_heartbeat(stop: asyncio.Event, instance_id: str) -> None:
@@ -57,7 +102,10 @@ async def api_heartbeat(stop: asyncio.Event, instance_id: str) -> None:
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    if settings.app_env == "production":
+        await verify_admin_web(app)
+
     stop = asyncio.Event()
     instance_id = api_instance_id()
     heartbeat_task = asyncio.create_task(api_heartbeat(stop, instance_id))
@@ -115,11 +163,14 @@ async def ready(response: Response) -> dict[str, object]:
             "status": "not_ready",
             "error": f"{type(exc).__name__}: {exc}",
         }
-    if not migrations.matches:
+    if not migrations.matches or (
+        settings.app_env == "production" and not admin_web_verified
+    ):
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {
             "status": "not_ready",
             "database": "ok",
+            "admin_web": "ok" if admin_web_verified else "not_ready",
             "migrations": {
                 "current": list(migrations.current),
                 "expected": list(migrations.expected),
@@ -128,6 +179,7 @@ async def ready(response: Response) -> dict[str, object]:
     return {
         "status": "ready",
         "database": "ok",
+        "admin_web": "ok" if admin_web_verified else "not_checked",
         "migrations": list(migrations.current),
     }
 
@@ -158,7 +210,6 @@ async def telegram_webhook(
     return {"ok": True, "duplicate": False}
 
 
-admin_web_dir = Path(os.getenv("ADMIN_WEB_DIR", "/app/admin-web-dist"))
 if admin_web_dir.is_dir():
     app.mount(
         "/admin",
