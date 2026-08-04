@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 from uuid import uuid4
 
 from aiogram import Bot, Dispatcher
+from aiogram.types import BotCommand, BotCommandScopeChat, BotCommandScopeDefault
 
 from dollartl.config import Settings
 from dollartl.storage import S3Storage
@@ -84,6 +85,22 @@ async def configure_telegram_webhook(
         raise RuntimeError("TELEGRAM_WEBHOOK_SECRET is required in production")
 
     identity = await bot.get_me()
+    default_commands = [
+        BotCommand(command="start", description="Open the main menu"),
+        BotCommand(command="menu", description="Open additional actions"),
+        BotCommand(command="cancel", description="Cancel the current action"),
+        BotCommand(command="settings", description="Open settings"),
+        BotCommand(command="help", description="Show help"),
+    ]
+    await bot.set_my_commands(default_commands, scope=BotCommandScopeDefault())
+    await bot.set_my_commands(
+        [
+            *default_commands,
+            BotCommand(command="admin", description="Open the admin panel"),
+        ],
+        scope=BotCommandScopeChat(chat_id=settings.admin_telegram_id),
+    )
+
     allowed_updates = dispatcher.resolve_used_update_types()
     configured = await bot.set_webhook(
         url=webhook_url,
