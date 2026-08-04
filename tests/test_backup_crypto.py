@@ -39,6 +39,7 @@ def test_backup_tampering_is_detected(tmp_path: Path) -> None:
 
     with pytest.raises(Exception):
         decrypt_file(encrypted, restored, "correct horse battery staple")
+    assert not restored.exists()
 
 
 def test_wrong_backup_key_is_rejected(tmp_path: Path) -> None:
@@ -50,10 +51,13 @@ def test_wrong_backup_key_is_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(Exception):
         decrypt_file(encrypted, restored, "totally different backup key")
+    assert not restored.exists()
 
 
 def test_short_backup_key_is_rejected(tmp_path: Path) -> None:
     source = tmp_path / "database.dump"
+    destination = tmp_path / "backup.dtlbak"
     source.write_bytes(b"database")
     with pytest.raises(ValueError, match="at least 16 bytes"):
-        encrypt_file(source, tmp_path / "backup.dtlbak", "short")
+        encrypt_file(source, destination, "short")
+    assert not destination.exists()
