@@ -3,8 +3,10 @@ from contextlib import asynccontextmanager
 
 from aiogram.types import Update
 from fastapi import FastAPI, Header, HTTPException, Response, status
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+from dollartl.admin.router import router as admin_router
 from dollartl.bot.dispatcher import create_bot, create_dispatcher
 from dollartl.config import get_settings
 from dollartl.db.session import engine
@@ -24,7 +26,18 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await engine.dispose()
 
 
-app = FastAPI(title=settings.app_name, version="0.6.0", lifespan=lifespan)
+app = FastAPI(title=settings.app_name, version="0.7.0", lifespan=lifespan)
+allowed_origins = [settings.admin_web_origin.rstrip("/")]
+if settings.app_env == "development":
+    allowed_origins.extend(["http://localhost:8080", "http://localhost:5173"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=list(dict.fromkeys(allowed_origins)),
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-Telegram-Init-Data", "X-Admin-Development-Id"],
+)
+app.include_router(admin_router)
 
 
 @app.get("/health/live", include_in_schema=False)
