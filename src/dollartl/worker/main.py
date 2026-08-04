@@ -54,7 +54,7 @@ async def lease_keeper(
 
 
 async def heartbeat_keeper(
-    redis: Redis[str],
+    redis: Redis,
     lease: RedisLeaderLease,
     stop: asyncio.Event,
     worker_instance_id: str,
@@ -82,7 +82,7 @@ async def heartbeat_keeper(
 
 async def run() -> None:
     configure_logging(settings.log_level)
-    redis: Redis[str] = Redis.from_url(settings.redis_url, decode_responses=True)
+    redis: Redis = Redis.from_url(settings.redis_url, decode_responses=True)
     bot = create_bot(settings)
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
