@@ -69,7 +69,7 @@ async def heartbeat_keeper(
             await record_heartbeat(
                 service_name="worker",
                 instance_id=worker_instance_id,
-                status="healthy" if lease.held else "degraded",
+                status="healthy",
                 metadata={"leader": lease.held},
             )
         except Exception:
