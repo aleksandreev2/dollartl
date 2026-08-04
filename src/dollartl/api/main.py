@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from aiogram.types import Update
@@ -16,14 +17,14 @@ dispatcher = create_dispatcher(settings)
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     yield
     if bot is not None:
         await bot.session.close()
     await engine.dispose()
 
 
-app = FastAPI(title=settings.app_name, version="0.2.0", lifespan=lifespan)
+app = FastAPI(title=settings.app_name, version="0.3.0", lifespan=lifespan)
 
 
 @app.get("/health/live", include_in_schema=False)

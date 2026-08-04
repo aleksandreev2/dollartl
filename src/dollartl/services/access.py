@@ -125,6 +125,29 @@ class AccessService:
         )
         await self.session.commit()
 
+    async def set_pending_deep_link(self, user_id: UUID, token: str) -> None:
+        if not token or len(token) > 64:
+            return
+        await self.session.execute(
+            update(UserSettings)
+            .where(UserSettings.user_id == user_id)
+            .values(pending_deep_link_token=token)
+        )
+        await self.session.commit()
+
+    async def pop_pending_deep_link(self, user_id: UUID) -> str | None:
+        settings = (
+            await self.session.execute(
+                select(UserSettings).where(UserSettings.user_id == user_id).with_for_update()
+            )
+        ).scalar_one_or_none()
+        if settings is None:
+            return None
+        token = settings.pending_deep_link_token
+        settings.pending_deep_link_token = None
+        await self.session.commit()
+        return token
+
     async def resolve_ban(
         self,
         user_id: UUID,
@@ -209,6 +232,21 @@ class AccessService:
                 select(User).where(User.telegram_id == telegram_id)
             )
         ).scalar_one_or_none()
+
+    async def set_manual_download_access(
+        self, *, target: User, enabled: bool, admin_telegram_id: int
+    ) -> None:
+        target.manual_download_access = enabled
+        self.session.add(
+            AuditLog(
+                actor_telegram_id=admin_telegram_id,
+                action="user.manual_download_access_changed",
+                entity_type="user",
+                entity_id=str(target.id),
+                payload={"enabled": enabled, "target_telegram_id": target.telegram_id},
+            )
+        )
+        await self.session.commit()
 
     async def create_ban(
         self,

@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     telegram_bot_token: SecretStr = SecretStr("")
     telegram_webhook_secret: SecretStr = SecretStr("")
     telegram_webhook_base_url: str = ""
+    telegram_bot_username: str = ""
+    telegram_channel_username: str = "@dollartranslate"
+    telegram_api_base_url: str = ""
     admin_telegram_id: int = 2096975784
 
     database_url: str = "postgresql+asyncpg://dollartl:dollartl@localhost:5432/dollartl"
@@ -43,6 +46,9 @@ class Settings(BaseSettings):
 
     adult_consent_version: int = 1
     ban_notice_interval_hours: int = 6
+    catalogue_page_size: int = 8
+    channel_posts_enabled: bool = True
+    worker_poll_seconds: int = 5
     maintenance_mode: bool = False
 
     @field_validator("app_timezone")
@@ -51,7 +57,12 @@ class Settings(BaseSettings):
         ZoneInfo(value)
         return value
 
-    @field_validator("adult_consent_version", "ban_notice_interval_hours")
+    @field_validator(
+        "adult_consent_version",
+        "ban_notice_interval_hours",
+        "catalogue_page_size",
+        "worker_poll_seconds",
+    )
     @classmethod
     def validate_positive_integer(cls, value: int) -> int:
         if value < 1:
@@ -61,6 +72,10 @@ class Settings(BaseSettings):
     @property
     def webhook_url(self) -> str:
         return f"{self.telegram_webhook_base_url.rstrip('/')}/telegram/webhook"
+
+    @property
+    def normalized_bot_username(self) -> str:
+        return self.telegram_bot_username.lstrip("@")
 
 
 @lru_cache

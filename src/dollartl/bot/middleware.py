@@ -5,7 +5,7 @@ from datetime import timedelta
 from typing import Any
 
 from aiogram import BaseMiddleware, Bot
-from aiogram.types import CallbackQuery, TelegramObject, Update
+from aiogram.types import CallbackQuery, Message, TelegramObject, Update
 from aiogram.types import User as TelegramUser
 
 from dollartl.bot.keyboards import adult_consent_keyboard
@@ -13,7 +13,6 @@ from dollartl.bot.texts import ADULT_NOTICE, render_permanent_ban, render_tempor
 from dollartl.config import Settings
 from dollartl.db.session import SessionFactory
 from dollartl.services.access import AccessService
-
 
 Handler = Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]]
 
@@ -27,6 +26,16 @@ def extract_user(update: Update) -> TelegramUser | None:
 def is_current_consent_callback(update: Update, version: int) -> bool:
     inner = update.event
     return isinstance(inner, CallbackQuery) and inner.data == f"consent:adult:{version}"
+
+
+def extract_start_parameter(update: Update) -> str | None:
+    inner = update.event
+    if not isinstance(inner, Message) or not inner.text:
+        return None
+    parts = inner.text.split(maxsplit=1)
+    if not parts or not parts[0].split("@", maxsplit=1)[0].lower().endswith("/start"):
+        return None
+    return parts[1].strip() if len(parts) == 2 else None
 
 
 class AccessMiddleware(BaseMiddleware):
@@ -65,6 +74,10 @@ class AccessMiddleware(BaseMiddleware):
             has_consent = await service.has_consent(
                 user.id, self.settings.adult_consent_version
             )
+            if not has_consent:
+                token = extract_start_parameter(event)
+                if token:
+                    await service.set_pending_deep_link(user.id, token)
             if not has_consent and not is_current_consent_callback(
                 event, self.settings.adult_consent_version
             ):

@@ -4,21 +4,23 @@
 
 Telegram distribution bot for Dollar TL with an English reader interface and a Russian administrative Mini App.
 
-## Current version: v0.2 access foundation
+## Current version: v0.3 catalogue foundation
 
-- FastAPI webhook/API service
-- aiogram bot dispatcher
-- PostgreSQL + SQLAlchemy 2 + Alembic
-- Redis-backed worker foundation
-- S3-compatible storage adapter
-- universal adult-content legal-age consent
-- permanent `Anonymous <id>` identity
-- user notification settings
-- global temporary and permanent bans
-- six-hour ban-notice throttling
-- owner-only temporary admin commands for access management
-- Docker Compose and Railway deployment configuration
-- portable database and object-storage export/import scripts
+- universal adult-content legal-age consent;
+- permanent `Anonymous <id>` identities;
+- global temporary and permanent bans;
+- title catalogue, search and latest releases;
+- title pages and chapter-package subpages;
+- PDF + EPUB as one validated release;
+- automatic chapter-range detection for PDF and EPUB;
+- S3 originals plus Telegram `file_id` delivery cache;
+- protected direct downloads for enabled accounts;
+- assigned Boosty links for standard accounts;
+- followed-title library and release notifications;
+- deep links from `@dollartranslate` into exact titles or releases;
+- idempotent outbox delivery foundation;
+- Docker Compose and Railway deployment configuration;
+- portable database and object-storage export/import scripts.
 
 ## Local start
 
@@ -29,8 +31,19 @@ Telegram distribution bot for Dollar TL with an English reader interface and a R
    - `GET http://localhost:8000/health/live`
    - `GET http://localhost:8000/health/ready`
 
-## Important
+## Temporary owner commands
 
-PostgreSQL is the source of truth. Redis is disposable. User files must be stored in S3-compatible object storage, never only on the container filesystem.
+Until the Russian Admin Mini App is delivered:
 
-See `docs/ARCHITECTURE.md`, `docs/ACCESS_CONTROL.md`, `docs/RAILWAY_DEPLOY.md` and `docs/MIGRATION_RAILWAY.md`.
+```text
+/title_create English | Original | Language | ongoing | Boosty URL | Description
+/title_cover <title_slug>                 (caption on an image)
+/release_create <title_slug> <1-20> [Boosty URL]
+/attach_file <release_uuid> <pdf|epub>   (caption on a document)
+/release_override <release_uuid> <reason>
+/publish_title <title_slug>
+/publish_release <release_uuid>
+/download_access <telegram_id> on|off
+```
+
+See `docs/ARCHITECTURE.md`, `docs/ACCESS_CONTROL.md`, `docs/CATALOG.md`, `docs/RAILWAY_DEPLOY.md` and `docs/MIGRATION_RAILWAY.md`.
