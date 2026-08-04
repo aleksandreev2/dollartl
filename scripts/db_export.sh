@@ -6,7 +6,8 @@ set -Eeuo pipefail
 OUTPUT_DIR="${BACKUP_OUTPUT_DIR:-backup-exports}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$OUTPUT_DIR"
-OUTPUT="$OUTPUT_DIR/dollartl-$STAMP.dtlbak"
+BASENAME="dollartl-$STAMP.dtlbak"
+OUTPUT="$OUTPUT_DIR/$BASENAME"
 TEMP_DUMP="$(mktemp -t dollartl-export-XXXXXX.dump)"
 
 cleanup() {
@@ -23,5 +24,8 @@ pg_dump \
   --file="$TEMP_DUMP"
 python -m dollartl.resilience.backup_cli encrypt "$TEMP_DUMP" "$OUTPUT" \
   > "$OUTPUT.metadata.json"
-sha256sum "$OUTPUT" > "$OUTPUT.sha256"
+(
+  cd "$OUTPUT_DIR"
+  sha256sum "$BASENAME" > "$BASENAME.sha256"
+)
 echo "$OUTPUT"
