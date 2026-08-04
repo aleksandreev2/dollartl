@@ -100,18 +100,22 @@ def encrypt_file(
     cipher = AESGCM(key)
     destination_path.parent.mkdir(parents=True, exist_ok=True)
     chunks = 0
-    with source_path.open("rb") as source, destination_path.open("wb") as destination:
-        header_raw = _write_header(destination, header)
-        while plaintext := source.read(chunk_size):
-            if chunks >= 2**32:
-                raise ValueError("Backup contains too many chunks")
-            counter = chunks.to_bytes(4, "big")
-            nonce = nonce_prefix + counter
-            aad = MAGIC + header_raw + counter
-            ciphertext = cipher.encrypt(nonce, plaintext, aad)
-            destination.write(CHUNK_HEADER.pack(len(plaintext), len(ciphertext)))
-            destination.write(ciphertext)
-            chunks += 1
+    try:
+        with source_path.open("rb") as source, destination_path.open("wb") as destination:
+            header_raw = _write_header(destination, header)
+            while plaintext := source.read(chunk_size):
+                if chunks >= 2**32:
+                    raise ValueError("Backup contains too many chunks")
+                counter = chunks.to_bytes(4, "big")
+                nonce = nonce_prefix + counter
+                aad = MAGIC + header_raw + counter
+                ciphertext = cipher.encrypt(nonce, plaintext, aad)
+                destination.write(CHUNK_HEADER.pack(len(plaintext), len(ciphertext)))
+                destination.write(ciphertext)
+                chunks += 1
+    except Exception:
+        destination_path.unlink(missing_ok=True)
+        raise
     encrypted_size, encrypted_sha256 = hash_file(destination_path)
     return EncryptionResult(
         plaintext_size=plaintext_size,
@@ -125,49 +129,53 @@ def encrypt_file(
 def decrypt_file(source_path: Path, destination_path: Path, secret: str) -> EncryptionResult:
     destination_path.parent.mkdir(parents=True, exist_ok=True)
     chunks = 0
-    with source_path.open("rb") as source:
-        header, header_raw = _read_header(source)
-        try:
-            salt = base64.b64decode(str(header["salt"]), validate=True)
-            nonce_prefix = base64.b64decode(str(header["nonce_prefix"]), validate=True)
-            expected_size = int(header["plaintext_size"])
-            expected_sha256 = str(header["plaintext_sha256"])
-        except (KeyError, TypeError, ValueError) as exc:
-            raise ValueError("Backup header fields are invalid") from exc
-        if len(salt) != 16 or len(nonce_prefix) != 8:
-            raise ValueError("Backup cryptographic parameters are invalid")
-        cipher = AESGCM(_derive_key(secret, salt))
-        digest = hashlib.sha256()
-        written = 0
-        with destination_path.open("wb") as destination:
-            while True:
-                chunk_header = source.read(CHUNK_HEADER.size)
-                if not chunk_header:
-                    break
-                if len(chunk_header) != CHUNK_HEADER.size:
-                    raise ValueError("Backup chunk header is truncated")
-                plaintext_length, ciphertext_length = CHUNK_HEADER.unpack(chunk_header)
-                if plaintext_length < 1 or ciphertext_length != plaintext_length + 16:
-                    raise ValueError("Backup chunk lengths are invalid")
-                ciphertext = source.read(ciphertext_length)
-                if len(ciphertext) != ciphertext_length:
-                    raise ValueError("Backup chunk is truncated")
-                counter = chunks.to_bytes(4, "big")
-                plaintext = cipher.decrypt(
-                    nonce_prefix + counter,
-                    ciphertext,
-                    MAGIC + header_raw + counter,
-                )
-                if len(plaintext) != plaintext_length:
-                    raise ValueError("Backup chunk plaintext length is invalid")
-                destination.write(plaintext)
-                digest.update(plaintext)
-                written += len(plaintext)
-                chunks += 1
-        actual_sha256 = digest.hexdigest()
-        if written != expected_size or actual_sha256 != expected_sha256:
-            destination_path.unlink(missing_ok=True)
-            raise ValueError("Backup plaintext checksum verification failed")
+    written = 0
+    actual_sha256 = ""
+    try:
+        with source_path.open("rb") as source:
+            header, header_raw = _read_header(source)
+            try:
+                salt = base64.b64decode(str(header["salt"]), validate=True)
+                nonce_prefix = base64.b64decode(str(header["nonce_prefix"]), validate=True)
+                expected_size = int(header["plaintext_size"])
+                expected_sha256 = str(header["plaintext_sha256"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError("Backup header fields are invalid") from exc
+            if len(salt) != 16 or len(nonce_prefix) != 8:
+                raise ValueError("Backup cryptographic parameters are invalid")
+            cipher = AESGCM(_derive_key(secret, salt))
+            digest = hashlib.sha256()
+            with destination_path.open("wb") as destination:
+                while True:
+                    chunk_header = source.read(CHUNK_HEADER.size)
+                    if not chunk_header:
+                        break
+                    if len(chunk_header) != CHUNK_HEADER.size:
+                        raise ValueError("Backup chunk header is truncated")
+                    plaintext_length, ciphertext_length = CHUNK_HEADER.unpack(chunk_header)
+                    if plaintext_length < 1 or ciphertext_length != plaintext_length + 16:
+                        raise ValueError("Backup chunk lengths are invalid")
+                    ciphertext = source.read(ciphertext_length)
+                    if len(ciphertext) != ciphertext_length:
+                        raise ValueError("Backup chunk is truncated")
+                    counter = chunks.to_bytes(4, "big")
+                    plaintext = cipher.decrypt(
+                        nonce_prefix + counter,
+                        ciphertext,
+                        MAGIC + header_raw + counter,
+                    )
+                    if len(plaintext) != plaintext_length:
+                        raise ValueError("Backup chunk plaintext length is invalid")
+                    destination.write(plaintext)
+                    digest.update(plaintext)
+                    written += len(plaintext)
+                    chunks += 1
+            actual_sha256 = digest.hexdigest()
+            if written != expected_size or actual_sha256 != expected_sha256:
+                raise ValueError("Backup plaintext checksum verification failed")
+    except Exception:
+        destination_path.unlink(missing_ok=True)
+        raise
     encrypted_size, encrypted_sha256 = hash_file(source_path)
     return EncryptionResult(
         plaintext_size=written,
