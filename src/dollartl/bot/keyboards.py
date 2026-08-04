@@ -14,6 +14,7 @@ DONATE_URL = "https://boosty.to/domnekromanta/single-payment/donation/818248/tar
 NAV_HOME = "🏠 Home"
 NAV_LATEST = "🆕 Latest"
 NAV_BROWSE = "📚 Browse"
+NAV_SEARCH = "🔎 Search"
 NAV_LIBRARY = "📖 Library"
 NAV_MENU = "☰ Menu"
 NAV_CANCEL = "❌ /cancel"
@@ -23,8 +24,9 @@ def persistent_navigation_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text=NAV_HOME), KeyboardButton(text=NAV_LATEST)],
-            [KeyboardButton(text=NAV_BROWSE), KeyboardButton(text=NAV_LIBRARY)],
-            [KeyboardButton(text=NAV_MENU), KeyboardButton(text=NAV_CANCEL)],
+            [KeyboardButton(text=NAV_BROWSE), KeyboardButton(text=NAV_SEARCH)],
+            [KeyboardButton(text=NAV_LIBRARY), KeyboardButton(text=NAV_MENU)],
+            [KeyboardButton(text=NAV_CANCEL)],
         ],
         resize_keyboard=True,
         one_time_keyboard=False,
@@ -47,17 +49,63 @@ def adult_consent_keyboard(version: int) -> InlineKeyboardMarkup:
 
 
 def home_keyboard() -> InlineKeyboardMarkup:
+    """Full inline home menu shown under the home card.
+
+    The persistent reply keyboard remains available independently after it has
+    been installed once, so the two navigation surfaces complement rather than
+    replace one another.
+    """
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="💎 Boosty Access", callback_data="boosty:menu"),
-                InlineKeyboardButton(text="💡 Suggest a Title", callback_data="menu:suggest"),
+                InlineKeyboardButton(
+                    text="🆕 Latest Releases", callback_data="catalog:latest:0"
+                ),
+                InlineKeyboardButton(
+                    text="📚 Browse Titles", callback_data="catalog:list:0"
+                ),
             ],
             [
-                InlineKeyboardButton(text="📋 My Suggestions", callback_data="sug:mine"),
-                InlineKeyboardButton(text="⚙️ Settings", callback_data="menu:settings"),
+                InlineKeyboardButton(text="🔎 Search", callback_data="catalog:search"),
+                InlineKeyboardButton(
+                    text="📖 My Library", callback_data="catalog:library"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="💎 Boosty Access", callback_data="boosty:menu"
+                ),
+                InlineKeyboardButton(
+                    text="💡 Suggest a Title", callback_data="menu:suggest"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📋 My Suggestions", callback_data="sug:mine"
+                ),
+                InlineKeyboardButton(
+                    text="⚙️ Settings", callback_data="menu:settings"
+                ),
             ],
             [InlineKeyboardButton(text="❓ Help", callback_data="menu:help")],
+        ]
+    )
+
+
+def search_prompt_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="❌ Cancel Search", callback_data="catalog:search:cancel"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📚 Browse Instead", callback_data="catalog:list:0"
+                ),
+                InlineKeyboardButton(text="🏠 Main Menu", callback_data="menu:home"),
+            ],
         ]
     )
 
@@ -100,15 +148,13 @@ def catalogue_keyboard(
     if page > 0:
         navigation.append(
             InlineKeyboardButton(
-                text="◀️ Previous",
-                callback_data=f"catalog:list:{page - 1}",
+                text="◀️ Previous", callback_data=f"catalog:list:{page - 1}"
             )
         )
     if has_next:
         navigation.append(
             InlineKeyboardButton(
-                text="Next ▶️",
-                callback_data=f"catalog:list:{page + 1}",
+                text="Next ▶️", callback_data=f"catalog:list:{page + 1}"
             )
         )
     if navigation:
@@ -145,20 +191,23 @@ def latest_keyboard(
     if page > 0:
         navigation.append(
             InlineKeyboardButton(
-                text="◀️ Previous",
-                callback_data=f"catalog:latest:{page - 1}",
+                text="◀️ Previous", callback_data=f"catalog:latest:{page - 1}"
             )
         )
     if has_next:
         navigation.append(
             InlineKeyboardButton(
-                text="Next ▶️",
-                callback_data=f"catalog:latest:{page + 1}",
+                text="Next ▶️", callback_data=f"catalog:latest:{page + 1}"
             )
         )
     if navigation:
         rows.append(navigation)
-    rows.append([InlineKeyboardButton(text="◀️ Main Menu", callback_data="menu:home")])
+    rows.extend(
+        [
+            [InlineKeyboardButton(text="🔎 Search Titles", callback_data="catalog:search")],
+            [InlineKeyboardButton(text="◀️ Main Menu", callback_data="menu:home")],
+        ]
+    )
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -175,7 +224,12 @@ def search_results_keyboard(titles: list[Title]) -> InlineKeyboardMarkup:
     rows.extend(
         [
             [InlineKeyboardButton(text="🔎 Search Again", callback_data="catalog:search")],
-            [InlineKeyboardButton(text="◀️ Browse Titles", callback_data="catalog:list:0")],
+            [
+                InlineKeyboardButton(
+                    text="📚 Browse Titles", callback_data="catalog:list:0"
+                ),
+                InlineKeyboardButton(text="🏠 Main Menu", callback_data="menu:home"),
+            ],
         ]
     )
     return InlineKeyboardMarkup(inline_keyboard=rows)
@@ -202,8 +256,7 @@ def title_keyboard(
         [
             [
                 InlineKeyboardButton(
-                    text="💬 Comments",
-                    callback_data=f"cm:ls:t:{title.id}:0",
+                    text="💬 Comments", callback_data=f"cm:ls:t:{title.id}:0"
                 ),
                 InlineKeyboardButton(
                     text="⚠️ Report",
@@ -224,13 +277,26 @@ def title_keyboard(
             ],
             [
                 InlineKeyboardButton(text="💝 Donate", url=donate_url),
-                InlineKeyboardButton(text="Thank you.", callback_data="community:thanks"),
+                InlineKeyboardButton(
+                    text="Thank you.", callback_data="community:thanks"
+                ),
             ],
         ]
     )
     if title.boosty_url:
-        rows.append([InlineKeyboardButton(text="🌐 Open on Boosty", url=title.boosty_url)])
-    rows.append([InlineKeyboardButton(text="◀️ Browse Titles", callback_data="catalog:list:0")])
+        rows.append(
+            [InlineKeyboardButton(text="🌐 Open on Boosty", url=title.boosty_url)]
+        )
+    rows.extend(
+        [
+            [InlineKeyboardButton(text="🔎 Search Titles", callback_data="catalog:search")],
+            [
+                InlineKeyboardButton(
+                    text="◀️ Browse Titles", callback_data="catalog:list:0"
+                )
+            ],
+        ]
+    )
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -262,8 +328,7 @@ def release_keyboard(
         [
             [
                 InlineKeyboardButton(
-                    text="💬 Comments",
-                    callback_data=f"cm:ls:r:{release.id}:0",
+                    text="💬 Comments", callback_data=f"cm:ls:r:{release.id}:0"
                 ),
                 InlineKeyboardButton(
                     text="⭐ Rate Translation",
@@ -276,6 +341,7 @@ def release_keyboard(
                     callback_data=f"community:report:release:{release.id}",
                 )
             ],
+            [InlineKeyboardButton(text="🔎 Search Titles", callback_data="catalog:search")],
             [
                 InlineKeyboardButton(
                     text="◀️ Back to Title",
@@ -299,7 +365,12 @@ def library_keyboard(titles: list[Title]) -> InlineKeyboardMarkup:
     ]
     rows.extend(
         [
-            [InlineKeyboardButton(text="📚 Browse Titles", callback_data="catalog:list:0")],
+            [InlineKeyboardButton(text="🔎 Search Titles", callback_data="catalog:search")],
+            [
+                InlineKeyboardButton(
+                    text="📚 Browse Titles", callback_data="catalog:list:0"
+                )
+            ],
             [InlineKeyboardButton(text="◀️ Main Menu", callback_data="menu:home")],
         ]
     )
