@@ -8,15 +8,19 @@ from uuid import UUID
 
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest
+from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, FSInputFile, InlineKeyboardMarkup, Message
 
 from dollartl.bot.keyboards import (
+    NAV_SEARCH,
     catalogue_keyboard,
+    home_keyboard,
     latest_keyboard,
     library_keyboard,
     release_keyboard,
+    search_prompt_keyboard,
     search_results_keyboard,
     title_keyboard,
 )
@@ -24,7 +28,6 @@ from dollartl.bot.texts import (
     NO_RELEASES,
     NO_SEARCH_RESULTS,
     NO_TITLES,
-    SEARCH_PROMPT,
     render_release,
     render_title,
 )
@@ -260,8 +263,51 @@ async def _send_file_bundle(
             )
 
 
+async def _send_search_results(message: Message, query: str) -> None:
+    normalized = " ".join(query.split())[:100]
+    if len(normalized) < 2:
+        await message.answer(
+            "🔎 <b>SEARCH TITLES</b>\n\nType at least two characters. You can also use <code>/search title name</code>.",
+            reply_markup=search_prompt_keyboard(),
+        )
+        return
+    async with SessionFactory() as session:
+        titles = await CatalogService(session).search_titles(normalized)
+    text = (
+        "🔎 <b>SEARCH RESULTS</b>\n\n"
+        f"Results for: <b>{escape(normalized)}</b>"
+    )
+    if not titles:
+        text += f"\n\n{NO_SEARCH_RESULTS}"
+    await message.answer(text, reply_markup=search_results_keyboard(titles))
+
+
+async def _start_search_message(message: Message, state: FSMContext) -> None:
+    await state.set_state(SearchTitleState.query)
+    await message.answer(
+        "🔎 <b>SEARCH TITLES</b>\n\nSend an English title, original title or alias.\n\nTip: use <code>/search Solo Leveling</code> to search in one step.",
+        reply_markup=search_prompt_keyboard(),
+    )
+
+
 def create_catalog_router(settings: Settings) -> Router:
     router = Router(name="catalog")
+
+    @router.message(Command("search"))
+    async def search_command(
+        message: Message, state: FSMContext, command: CommandObject
+    ) -> None:
+        query = (command.args or "").strip()
+        await state.clear()
+        if query:
+            await _send_search_results(message, query)
+            return
+        await _start_search_message(message, state)
+
+    @router.message(F.text == NAV_SEARCH)
+    async def search_navigation(message: Message, state: FSMContext) -> None:
+        await state.clear()
+        await _start_search_message(message, state)
 
     @router.callback_query(F.data.startswith("catalog:list:"))
     async def list_titles(callback: CallbackQuery) -> None:
@@ -312,18 +358,32 @@ def create_catalog_router(settings: Settings) -> Router:
     @router.callback_query(F.data == "catalog:search")
     async def start_search(callback: CallbackQuery, state: FSMContext) -> None:
         await state.set_state(SearchTitleState.query)
-        await _edit_or_answer(callback, SEARCH_PROMPT, catalogue_keyboard([], page=0, has_next=False))
+        await _edit_or_answer(
+            callback,
+            "🔎 <b>SEARCH TITLES</b>\n\nSend an English title, original title or alias.\n\nTip: use <code>/search title name</code> to search in one step.",
+            search_prompt_keyboard(),
+        )
+
+    @router.callback_query(F.data == "catalog:search:cancel")
+    async def cancel_search(callback: CallbackQuery, state: FSMContext) -> None:
+        await state.clear()
+        await _edit_or_answer(
+            callback,
+            "Search cancelled. Choose another action.",
+            home_keyboard(),
+        )
 
     @router.message(SearchTitleState.query)
     async def search(message: Message, state: FSMContext) -> None:
         query = (message.text or "").strip()
-        async with SessionFactory() as session:
-            titles = await CatalogService(session).search_titles(query)
+        if len(" ".join(query.split())) < 2:
+            await message.answer(
+                "Please send at least two characters, or use <code>/cancel</code>.",
+                reply_markup=search_prompt_keyboard(),
+            )
+            return
         await state.clear()
-        text = f"🔎 <b>SEARCH RESULTS</b>\n\nResults for: <b>{escape(query[:100])}</b>"
-        if not titles:
-            text += f"\n\n{NO_SEARCH_RESULTS}"
-        await message.answer(text, reply_markup=search_results_keyboard(titles))
+        await _send_search_results(message, query)
 
     @router.callback_query(F.data.startswith("catalog:download:"))
     async def download_release(callback: CallbackQuery, db_user: User, bot: Bot) -> None:
