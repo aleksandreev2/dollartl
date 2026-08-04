@@ -20,13 +20,7 @@ from dollartl.db.suggestion_models import (
     TitleSuggestion,
 )
 from dollartl.services.boosty import BoostyService
-from dollartl.services.suggestion_helpers import (
-    detect_title_language,
-    normalize_title,
-    quota_limit,
-    quota_month,
-    requested_scope,
-)
+from dollartl.services.suggestion_helpers import detect_title_language, normalize_title, quota_limit, quota_month, requested_scope
 
 PUBLIC_STATUS = {
     "under_review": "Under Review",
@@ -114,11 +108,7 @@ class SuggestionService:
         if draft is not None:
             return draft
         status = await BoostyService(self.session, self.settings).get_status(user.id)
-        draft = TitleSuggestion(
-            user_id=user.id,
-            status="draft",
-            vip_snapshot=status.has_download_access,
-        )
+        draft = TitleSuggestion(user_id=user.id, status="draft", vip_snapshot=status.has_download_access)
         self.session.add(draft)
         await self.session.commit()
         return draft
@@ -139,9 +129,7 @@ class SuggestionService:
         existing = list(
             (
                 await self.session.execute(
-                    select(SuggestionSource).where(
-                        SuggestionSource.suggestion_id == suggestion.id
-                    )
+                    select(SuggestionSource).where(SuggestionSource.suggestion_id == suggestion.id)
                 )
             ).scalars()
         )
@@ -198,11 +186,7 @@ class SuggestionService:
             )
         ).scalar_one_or_none()
         if existing is None:
-            existing = SuggestionFile(
-                suggestion_id=suggestion.id,
-                file_kind=file_kind,
-                object_key=object_key,
-            )
+            existing = SuggestionFile(suggestion_id=suggestion.id, file_kind=file_kind, object_key=object_key)
             self.session.add(existing)
         existing.object_key = object_key
         existing.original_filename = original_filename
@@ -233,9 +217,7 @@ class SuggestionService:
         files = list(
             (
                 await self.session.execute(
-                    select(SuggestionFile).where(
-                        SuggestionFile.suggestion_id == suggestion.id
-                    )
+                    select(SuggestionFile).where(SuggestionFile.suggestion_id == suggestion.id)
                 )
             ).scalars()
         )
@@ -259,13 +241,15 @@ class SuggestionService:
         if source_count < 1:
             raise ValueError("At least one source is required.")
 
-        await self.session.refresh(user, with_for_update=True)
-        quota = await self.quota_snapshot(user)
-        if quota.used >= quota.limit:
-            raise ValueError(
-                "Your title suggestion quota for this calendar month has been used."
+        persisted_user = (
+            await self.session.execute(
+                select(User).where(User.id == user.id).with_for_update()
             )
-        administrator = user.telegram_id == self.settings.admin_telegram_id
+        ).scalar_one()
+        quota = await self.quota_snapshot(persisted_user)
+        if quota.used >= quota.limit:
+            raise ValueError("Your title suggestion quota for this calendar month has been used.")
+        administrator = persisted_user.telegram_id == self.settings.admin_telegram_id
         start, end = requested_scope(
             chapter_count=suggestion.chapter_count,
             vip=quota.vip,
@@ -280,7 +264,7 @@ class SuggestionService:
         await self._detect_duplicates(suggestion)
         self.session.add(
             SuggestionQuotaUsage(
-                user_id=user.id,
+                user_id=persisted_user.id,
                 suggestion_id=suggestion.id,
                 quota_month=quota_month(),
             )
@@ -290,12 +274,12 @@ class SuggestionService:
                 suggestion_id=suggestion.id,
                 from_status="draft",
                 to_status="under_review",
-                actor_user_id=user.id,
+                actor_user_id=persisted_user.id,
             )
         )
         self.session.add(
             AuditLog(
-                actor_telegram_id=user.telegram_id,
+                actor_telegram_id=persisted_user.telegram_id,
                 action="suggestion.submitted",
                 entity_type="title_suggestion",
                 entity_id=str(suggestion.id),
@@ -310,29 +294,18 @@ class SuggestionService:
             (
                 await self.session.execute(
                     select(TitleSuggestion)
-                    .where(
-                        TitleSuggestion.user_id == user_id,
-                        TitleSuggestion.status != "draft",
-                    )
+                    .where(TitleSuggestion.user_id == user_id, TitleSuggestion.status != "draft")
                     .order_by(TitleSuggestion.submitted_at.desc())
                     .limit(limit)
                 )
             ).scalars()
         )
 
-    async def list_admin(
-        self, status: str = "under_review", limit: int = 30
-    ) -> list[TitleSuggestion]:
+    async def list_admin(self, status: str = "under_review", limit: int = 30) -> list[TitleSuggestion]:
         statement = select(TitleSuggestion).where(TitleSuggestion.status != "draft")
         if status != "all":
             statement = statement.where(TitleSuggestion.status == status)
-        return list(
-            (
-                await self.session.execute(
-                    statement.order_by(TitleSuggestion.submitted_at.asc()).limit(limit)
-                )
-            ).scalars()
-        )
+        return list((await self.session.execute(statement.order_by(TitleSuggestion.submitted_at.asc()).limit(limit))).scalars())
 
     async def get(self, suggestion_id: UUID) -> TitleSuggestion | None:
         return await self.session.get(TitleSuggestion, suggestion_id)
@@ -352,17 +325,20 @@ class SuggestionService:
         if new_status == "rejected" and not (public_reason or "").strip():
             raise ValueError("A public rejection reason is required.")
         if new_status == "translated":
-            if linked_title_id is None or await self.session.get(Title, linked_title_id) is None:
+            linked_title = (
+                await self.session.get(Title, linked_title_id)
+                if linked_title_id is not None
+                else None
+            )
+            if linked_title is None or not linked_title.is_published:
                 raise ValueError(
-                    "Translated suggestions require a valid linked title UUID."
+                    "Translated suggestions require a valid published title UUID."
                 )
         old = suggestion.status
         suggestion.status = new_status
         suggestion.public_reason = (public_reason or "").strip() or None
         suggestion.internal_note = (internal_note or "").strip() or None
-        suggestion.linked_title_id = (
-            linked_title_id if new_status == "translated" else suggestion.linked_title_id
-        )
+        suggestion.linked_title_id = linked_title_id if new_status == "translated" else suggestion.linked_title_id
         suggestion.decided_at = datetime.now(timezone.utc)
         self.session.add(
             SuggestionStatusHistory(
@@ -385,9 +361,7 @@ class SuggestionService:
         )
         await self.session.commit()
 
-    async def restore_quota_slot(
-        self, suggestion_id: UUID, admin_id: int, reason: str
-    ) -> bool:
+    async def restore_quota_slot(self, suggestion_id: UUID, admin_id: int, reason: str) -> bool:
         usage = (
             await self.session.execute(
                 select(SuggestionQuotaUsage).where(
@@ -436,10 +410,7 @@ class SuggestionService:
                 (
                     await self.session.execute(
                         select(TitleSuggestion)
-                        .join(
-                            SuggestionSource,
-                            SuggestionSource.suggestion_id == TitleSuggestion.id,
-                        )
+                        .join(SuggestionSource, SuggestionSource.suggestion_id == TitleSuggestion.id)
                         .where(
                             TitleSuggestion.id != suggestion.id,
                             TitleSuggestion.status != "draft",
@@ -453,9 +424,7 @@ class SuggestionService:
         file_hashes = list(
             (
                 await self.session.execute(
-                    select(SuggestionFile.sha256).where(
-                        SuggestionFile.suggestion_id == suggestion.id
-                    )
+                    select(SuggestionFile.sha256).where(SuggestionFile.suggestion_id == suggestion.id)
                 )
             ).scalars()
         )
@@ -464,10 +433,7 @@ class SuggestionService:
                 (
                     await self.session.execute(
                         select(TitleSuggestion)
-                        .join(
-                            SuggestionFile,
-                            SuggestionFile.suggestion_id == TitleSuggestion.id,
-                        )
+                        .join(SuggestionFile, SuggestionFile.suggestion_id == TitleSuggestion.id)
                         .where(
                             TitleSuggestion.id != suggestion.id,
                             TitleSuggestion.status != "draft",
@@ -480,16 +446,10 @@ class SuggestionService:
             matches.extend(file_matches)
         unique = {item.id: item for item in matches}
         published_titles = list(
-            (
-                await self.session.execute(
-                    select(Title).where(Title.is_published.is_(True))
-                )
-            ).scalars()
+            (await self.session.execute(select(Title).where(Title.is_published.is_(True)))).scalars()
         )
         for title in published_titles:
-            same_original = normalize_title(title.original_title) == suggestion.normalized_title
-            same_english = normalize_title(title.english_title) == suggestion.normalized_title
-            if same_original or same_english:
+            if normalize_title(title.original_title) == suggestion.normalized_title or normalize_title(title.english_title) == suggestion.normalized_title:
                 self.session.add(
                     DuplicateCandidate(
                         suggestion_id=suggestion.id,
