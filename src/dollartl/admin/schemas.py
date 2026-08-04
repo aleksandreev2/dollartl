@@ -72,7 +72,7 @@ class BanCreate(BaseModel):
 
 class BroadcastCreate(BaseModel):
     audience_type: Literal["all", "active_vip", "vip_grace", "standard", "title_followers", "selected"]
-    text: str = Field(min_length=1, max_length=4096)
+    text: str = Field(min_length=1, max_length=1024)
     title_id: UUID | None = None
     selected_user_ids: list[UUID] = Field(default_factory=list, max_length=5000)
     button_text: str | None = Field(default=None, max_length=64)
