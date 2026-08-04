@@ -1,5 +1,7 @@
 # Dollar TL
 
+[![CI](https://github.com/aleksandreev2/dollartl/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/aleksandreev2/dollartl/actions/workflows/ci.yml)
+
 Telegram distribution bot for Dollar TL with an English reader interface and a Russian administrative Mini App.
 
 ## v0.1 foundation
