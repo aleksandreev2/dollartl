@@ -62,7 +62,7 @@ async def record_heartbeat(
                 instance_id=instance_id,
                 status=status,
                 last_seen_at=now,
-                metadata=metadata or {},
+                metadata_json=metadata or {},
             )
             .on_conflict_do_update(
                 constraint="uq_service_heartbeats_service_instance",
