@@ -1,10 +1,36 @@
 from uuid import UUID
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+)
 
 from dollartl.db.models import Release, Title
 
 DONATE_URL = "https://boosty.to/domnekromanta/single-payment/donation/818248/target?share=target_link"
+
+NAV_HOME = "🏠 Home"
+NAV_LATEST = "🆕 Latest"
+NAV_BROWSE = "📚 Browse"
+NAV_LIBRARY = "📖 Library"
+NAV_MENU = "☰ Menu"
+NAV_CANCEL = "❌ /cancel"
+
+
+def persistent_navigation_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=NAV_HOME), KeyboardButton(text=NAV_LATEST)],
+            [KeyboardButton(text=NAV_BROWSE), KeyboardButton(text=NAV_LIBRARY)],
+            [KeyboardButton(text=NAV_MENU), KeyboardButton(text=NAV_CANCEL)],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        is_persistent=True,
+        input_field_placeholder="Choose an action or type /cancel",
+    )
 
 
 def adult_consent_keyboard(version: int) -> InlineKeyboardMarkup:
@@ -23,20 +49,15 @@ def adult_consent_keyboard(version: int) -> InlineKeyboardMarkup:
 def home_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🆕 Latest Releases", callback_data="catalog:latest:0")],
-            [InlineKeyboardButton(text="📚 Browse Titles", callback_data="catalog:list:0")],
             [
                 InlineKeyboardButton(text="💎 Boosty Access", callback_data="boosty:menu"),
-                InlineKeyboardButton(text="📖 My Library", callback_data="catalog:library"),
-            ],
-            [
                 InlineKeyboardButton(text="💡 Suggest a Title", callback_data="menu:suggest"),
-                InlineKeyboardButton(text="📋 My Suggestions", callback_data="sug:mine"),
             ],
             [
+                InlineKeyboardButton(text="📋 My Suggestions", callback_data="sug:mine"),
                 InlineKeyboardButton(text="⚙️ Settings", callback_data="menu:settings"),
-                InlineKeyboardButton(text="❓ Help", callback_data="menu:help"),
             ],
+            [InlineKeyboardButton(text="❓ Help", callback_data="menu:help")],
         ]
     )
 
