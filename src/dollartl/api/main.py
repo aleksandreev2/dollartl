@@ -3,11 +3,13 @@ import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from uuid import uuid4
 
 from aiogram.types import Update
 from fastapi import FastAPI, Header, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from dollartl.admin.raw_router import router as raw_admin_router
@@ -154,3 +156,14 @@ async def telegram_webhook(
         raise
     await complete_update(update.update_id)
     return {"ok": True, "duplicate": False}
+
+
+admin_web_dir = Path(os.getenv("ADMIN_WEB_DIR", "/app/admin-web-dist"))
+if admin_web_dir.is_dir():
+    app.mount(
+        "/admin",
+        StaticFiles(directory=admin_web_dir, html=True),
+        name="admin-web",
+    )
+else:
+    logger.warning("admin_web_assets_missing", extra={"path": str(admin_web_dir)})
