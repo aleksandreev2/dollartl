@@ -7,11 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_env: Literal["development", "test", "production"] = "development"
     app_name: str = "Dollar TL"
@@ -26,12 +22,14 @@ class Settings(BaseSettings):
     telegram_channel_username: str = "@dollartranslate"
     telegram_api_base_url: str = ""
     admin_telegram_id: int = 2096975784
+    admin_web_origin: str = "http://localhost:8080"
+    admin_web_url: str = "http://localhost:8080"
+    admin_init_data_ttl_seconds: int = 86400
+    admin_upload_max_bytes: int = 2 * 1024 * 1024 * 1024
 
     database_url: str = "postgresql+asyncpg://dollartl:dollartl@localhost:5432/dollartl"
     database_url_sync: str = "postgresql+psycopg://dollartl:dollartl@localhost:5432/dollartl"
-    postgres_dsn: SecretStr = SecretStr(
-        "postgresql://dollartl:dollartl@localhost:5432/dollartl"
-    )
+    postgres_dsn: SecretStr = SecretStr("postgresql://dollartl:dollartl@localhost:5432/dollartl")
     redis_url: str = "redis://localhost:6379/0"
 
     s3_endpoint_url: str | None = None
@@ -52,18 +50,16 @@ class Settings(BaseSettings):
     channel_posts_enabled: bool = True
     worker_poll_seconds: int = 5
     user_upload_max_bytes: int = 20 * 1024 * 1024
+    broadcast_batch_size: int = 20
+    broadcast_send_delay_seconds: float = 0.06
 
     boosty_enabled: bool = False
     boosty_api_base_url: str = "https://api.boosty.to"
     boosty_blog_name: str = "domnekromanta"
     boosty_tier_id: str = "4041120"
-    boosty_membership_url: str = (
-        "https://boosty.to/domnekromanta/purchase/4041120?ssource=DIRECT&share=subscription_link"
-    )
+    boosty_membership_url: str = "https://boosty.to/domnekromanta/purchase/4041120?ssource=DIRECT&share=subscription_link"
     boosty_messages_url: str = "https://boosty.to/app/messages"
-    boosty_donate_url: str = (
-        "https://boosty.to/domnekromanta/single-payment/donation/818248/target?share=target_link"
-    )
+    boosty_donate_url: str = "https://boosty.to/domnekromanta/single-payment/donation/818248/target?share=target_link"
     boosty_access_token: SecretStr = SecretStr("")
     boosty_refresh_token: SecretStr = SecretStr("")
     boosty_device_id: SecretStr = SecretStr("")
@@ -87,6 +83,7 @@ class Settings(BaseSettings):
     suggestion_archive_max_entries: int = 500
     suggestion_archive_max_unpacked_bytes: int = 200 * 1024 * 1024
     suggestion_antivirus_command: str = ""
+    suggestion_raw_required: bool = True
 
     maintenance_mode: bool = False
 
@@ -97,33 +94,27 @@ class Settings(BaseSettings):
         return value
 
     @field_validator(
-        "adult_consent_version",
-        "ban_notice_interval_hours",
-        "catalogue_page_size",
-        "worker_poll_seconds",
-        "user_upload_max_bytes",
-        "boosty_code_ttl_minutes",
-        "boosty_verification_poll_seconds",
-        "boosty_membership_sync_seconds",
-        "boosty_grace_days",
-        "boosty_request_timeout_seconds",
-        "boosty_contacts_limit",
-        "boosty_subscribers_page_size",
-        "boosty_max_subscriber_pages",
-        "boosty_circuit_breaker_failures",
-        "boosty_circuit_breaker_seconds",
-        "suggestion_rules_version",
-        "suggestion_standard_monthly_limit",
-        "suggestion_vip_monthly_limit",
-        "suggestion_standard_chapter_limit",
-        "suggestion_source_max",
-        "suggestion_archive_max_entries",
+        "adult_consent_version", "ban_notice_interval_hours", "catalogue_page_size",
+        "worker_poll_seconds", "user_upload_max_bytes", "admin_init_data_ttl_seconds",
+        "admin_upload_max_bytes", "broadcast_batch_size", "boosty_code_ttl_minutes",
+        "boosty_verification_poll_seconds", "boosty_membership_sync_seconds", "boosty_grace_days",
+        "boosty_request_timeout_seconds", "boosty_contacts_limit", "boosty_subscribers_page_size",
+        "boosty_max_subscriber_pages", "boosty_circuit_breaker_failures", "boosty_circuit_breaker_seconds",
+        "suggestion_rules_version", "suggestion_standard_monthly_limit", "suggestion_vip_monthly_limit",
+        "suggestion_standard_chapter_limit", "suggestion_source_max", "suggestion_archive_max_entries",
         "suggestion_archive_max_unpacked_bytes",
     )
     @classmethod
     def validate_positive_integer(cls, value: int) -> int:
         if value < 1:
             raise ValueError("value must be positive")
+        return value
+
+    @field_validator("broadcast_send_delay_seconds")
+    @classmethod
+    def validate_nonnegative_float(cls, value: float) -> float:
+        if value < 0:
+            raise ValueError("value must be non-negative")
         return value
 
     @property
