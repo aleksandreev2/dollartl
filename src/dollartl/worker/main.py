@@ -9,12 +9,8 @@ from dollartl.bot.dispatcher import create_bot
 from dollartl.config import get_settings
 from dollartl.db.session import engine
 from dollartl.logging import configure_logging
-from dollartl.worker.boosty import (
-    deliver_next_access_event,
-    expire_grace_periods,
-    process_pending_verifications,
-    synchronize_memberships,
-)
+from dollartl.worker.boosty import deliver_next_access_event, expire_grace_periods, process_pending_verifications, synchronize_memberships
+from dollartl.worker.broadcasts import process_next_broadcast
 from dollartl.worker.publications import process_next_publication
 
 logger = logging.getLogger(__name__)
@@ -33,12 +29,9 @@ async def run() -> None:
     bot = create_bot(settings)
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
-    next_verification = 0.0
-    next_membership_sync = 0.0
-    next_grace_expiry = 0.0
+    next_verification = next_membership_sync = next_grace_expiry = 0.0
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, stop.set)
-
     logger.info("worker_started")
     try:
         while not stop.is_set():
@@ -46,6 +39,7 @@ async def run() -> None:
             try:
                 await health_tick(redis)
                 processed = await process_next_publication(bot, settings)
+                processed = await process_next_broadcast(bot, settings) or processed
                 processed = await deliver_next_access_event(bot, settings) or processed
                 now = loop.time()
                 if settings.boosty_enabled and now >= next_verification:
@@ -59,9 +53,8 @@ async def run() -> None:
                     next_grace_expiry = now + 60
             except Exception:
                 logger.exception("worker_tick_failed")
-            timeout = 0.2 if processed else settings.worker_poll_seconds
             try:
-                await asyncio.wait_for(stop.wait(), timeout=timeout)
+                await asyncio.wait_for(stop.wait(), timeout=0.2 if processed else settings.worker_poll_seconds)
             except TimeoutError:
                 continue
     finally:
