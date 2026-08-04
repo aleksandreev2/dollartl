@@ -164,7 +164,7 @@ function mount(): void {
   const style = document.createElement("style");
   style.textContent = `
     .res-launch{position:fixed;right:18px;bottom:72px;z-index:60;border:1px solid #4fa58a;border-radius:999px;background:#17654f;color:#fff;padding:11px 16px;box-shadow:0 12px 34px #0008;cursor:pointer}
-    .res-drawer{position:fixed;inset:0 0 0 auto;z-index:80;width:min(520px,100%);background:#0d141d;border-left:1px solid #30443e;box-shadow:-20px 0 50px #0008;padding:18px;overflow:auto;transform:translateX(105%);transition:transform .2s ease}.res-drawer.open{transform:translateX(0)}
+    .res-drawer{position:fixed;display:block;inset:0 0 0 auto;z-index:80;width:min(520px,100%);background:#0d141d;border-left:1px solid #30443e;box-shadow:-20px 0 50px #0008;padding:18px;overflow:auto;transform:translateX(105%);transition:transform .2s ease}.res-drawer.open{transform:translateX(0)}
     .res-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.res-head h2{margin:0}.res-close,.res-section button{border:1px solid #3d5b51;border-radius:9px;background:#1b3029;color:#eef8f4;padding:8px 11px;cursor:pointer}.res-primary{width:100%;background:#17654f!important;border-color:#3f967a!important;margin-top:12px}
     .res-section{border:1px solid #283a35;border-radius:13px;background:#131d25;padding:13px;margin-bottom:11px}.res-section h3{margin:0 0 10px}.res-summary{display:grid;gap:8px}.res-summary>div,.res-row,.res-service,.res-backup-head{display:flex;justify-content:space-between;gap:10px}.res-row,.res-service{padding:8px 0;border-top:1px solid #25352f}.res-row:first-child{border-top:0}.res-service small{display:block;color:#91a79f;margin-top:3px;text-align:right}.res-backups{display:grid;gap:9px}.res-backup{border:1px solid #2a4038;border-radius:11px;background:#17242d;padding:11px}.res-backup>small{display:block;color:#9fb1ac;margin:6px 0}.res-checks,.res-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}.res-checks span{border-radius:999px;padding:3px 7px;background:#26362f;font-size:12px}.res-ok{color:#83e1be}.res-warn{color:#efd081}.res-bad,.res-error{color:#ff9ca8}.res-loading,.res-error{padding:16px}
   `;
@@ -172,7 +172,7 @@ function mount(): void {
   const launch = document.createElement("button");
   launch.className = "res-launch";
   launch.textContent = "Backup и health";
-  const drawer = document.createElement("aside");
+  const drawer = document.createElement("div");
   drawer.className = "res-drawer";
   drawer.innerHTML = '<div class="res-head"><div><h2>Надёжность</h2><small>Backup, сервисы и зависимости</small></div><button class="res-close">Закрыть</button></div><div class="res-content"></div>';
   document.body.append(launch, drawer);
