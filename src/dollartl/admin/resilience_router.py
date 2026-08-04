@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 
 from dollartl.admin.auth import AdminPrincipal, require_admin
+from dollartl.admin.operations_router import router as operations_router
 from dollartl.config import get_settings
 from dollartl.db.resilience_models import BackupRun
 from dollartl.db.session import SessionFactory
@@ -138,3 +139,6 @@ async def resilience_status(admin: Admin) -> dict[str, Any]:
         "dependencies": dependencies,
         **services,
     }
+
+
+router.include_router(operations_router)
