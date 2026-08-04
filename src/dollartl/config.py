@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     backup_download_url_seconds: int = 24 * 60 * 60
     backup_verify_dsn: SecretStr = SecretStr("")
     backup_s3_endpoint_url: str | None = None
-    backup_s3_region: str = "auto"
+    backup_s3_region: str = ""
     backup_s3_access_key_id: SecretStr = SecretStr("")
     backup_s3_secret_access_key: SecretStr = SecretStr("")
     backup_s3_force_path_style: bool = True
@@ -154,6 +154,15 @@ class Settings(BaseSettings):
         return self.telegram_bot_username.lstrip("@")
 
     @property
+    def has_independent_backup_s3(self) -> bool:
+        return bool(
+            self.backup_s3_endpoint_url
+            or self.backup_s3_region
+            or self.backup_s3_access_key_id.get_secret_value()
+            or self.backup_s3_secret_access_key.get_secret_value()
+        )
+
+    @property
     def effective_backup_s3_endpoint_url(self) -> str | None:
         return self.backup_s3_endpoint_url or self.s3_endpoint_url
 
@@ -168,6 +177,10 @@ class Settings(BaseSettings):
     @property
     def effective_backup_s3_secret_access_key(self) -> str:
         return self.backup_s3_secret_access_key.get_secret_value() or self.s3_secret_access_key.get_secret_value()
+
+    @property
+    def effective_backup_s3_force_path_style(self) -> bool:
+        return self.backup_s3_force_path_style if self.has_independent_backup_s3 else self.s3_force_path_style
 
 
 @lru_cache
