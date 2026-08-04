@@ -17,19 +17,11 @@ class StoredObject:
 
 
 class StorageAdapter(Protocol):
-    def upload_fileobj(
-        self, fileobj: BinaryIO, key: str, content_type: str
-    ) -> StoredObject:
-        ...
-
-    def download_file(self, key: str, destination: Path) -> Path:
-        ...
-
-    def delete(self, key: str) -> None:
-        ...
-
-    def exists(self, key: str) -> bool:
-        ...
+    def upload_fileobj(self, fileobj: BinaryIO, key: str, content_type: str) -> StoredObject: ...
+    def download_file(self, key: str, destination: Path) -> Path: ...
+    def delete(self, key: str) -> None: ...
+    def exists(self, key: str) -> bool: ...
+    def presigned_get_url(self, key: str, *, expires_seconds: int = 300, filename: str | None = None) -> str: ...
 
 
 class S3Storage:
@@ -41,13 +33,7 @@ class S3Storage:
             region_name=settings.s3_region,
             aws_access_key_id=settings.s3_access_key_id.get_secret_value(),
             aws_secret_access_key=settings.s3_secret_access_key.get_secret_value(),
-            config=Config(
-                s3={
-                    "addressing_style": "path"
-                    if settings.s3_force_path_style
-                    else "auto"
-                }
-            ),
+            config=Config(s3={"addressing_style": "path" if settings.s3_force_path_style else "auto"}),
         )
 
     def upload_fileobj(self, fileobj: BinaryIO, key: str, content_type: str) -> StoredObject:
@@ -69,3 +55,22 @@ class S3Storage:
         except ClientError:
             return False
         return True
+
+    def presigned_get_url(
+        self,
+        key: str,
+        *,
+        expires_seconds: int = 300,
+        filename: str | None = None,
+    ) -> str:
+        params: dict[str, str] = {"Bucket": self.bucket, "Key": key}
+        if filename:
+            safe = filename.replace('"', "").replace("\r", "").replace("\n", "")
+            params["ResponseContentDisposition"] = f'attachment; filename="{safe}"'
+        return str(
+            self.client.generate_presigned_url(
+                "get_object",
+                Params=params,
+                ExpiresIn=max(60, min(expires_seconds, 900)),
+            )
+        )
