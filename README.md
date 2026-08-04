@@ -2,25 +2,22 @@
 
 [![CI](https://github.com/aleksandreev2/dollartl/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/aleksandreev2/dollartl/actions/workflows/ci.yml)
 
-Telegram distribution bot for Dollar TL with an English reader interface and a Russian administrative Mini App.
+Telegram distribution bot for Dollar TL with an English reader interface and a protected Russian administrative Mini App.
 
-## Current version: v0.6 title suggestions
+## Current version: v0.7 Admin Mini App and broadcasts
 
 - universal adult-content legal-age consent;
-- permanent `Anonymous <id>` identities and optional filtered nicknames;
-- global temporary and permanent bans;
-- title catalogue, protected PDF + EPUB delivery and channel publications;
+- permanent `Anonymous <id>` identities, filtered nicknames and global bans;
+- title catalogue, protected PDF + EPUB delivery and `@dollartranslate` publications;
 - automatic Boosty tier `4041120` VIP access with seven-day grace period;
 - Donate and one-time `Thank you.` acknowledgement;
 - comments, translation ratings and reports;
-- versioned prohibited-content rules for title suggestions;
-- Standard quota: 1 submitted suggestion per calendar month;
-- VIP/grace quota: 5 submitted suggestions per calendar month;
-- Standard translation scope capped at chapters 1–200;
-- optional private raw file and official cover up to 20 MB;
-- archive safety, checksum, duplicate and antivirus-hook foundations;
-- suggestion statuses Under Review, Accepted, Translated and Rejected;
-- owner moderation commands until the Russian Admin Mini App is delivered;
+- Standard/VIP monthly title-suggestion quotas;
+- **mandatory validated raw file for every submitted title suggestion**;
+- protected Russian React + TypeScript Admin Mini App for Telegram ID `2096975784`;
+- title/release creation, file validation and publication without CLI;
+- users, bans, suggestions, comments, ratings, reports, Boosty and audit views;
+- idempotent manual broadcasts with audiences, scheduling, photos, buttons and retries;
 - portable PostgreSQL and S3 export/import scripts.
 
 ## Local start
@@ -31,16 +28,12 @@ Telegram distribution bot for Dollar TL with an English reader interface and a R
 4. API health endpoints:
    - `GET http://localhost:8000/health/live`
    - `GET http://localhost:8000/health/ready`
+5. Send `/admin` from Telegram after `ADMIN_WEB_URL` is configured.
 
-## Temporary suggestion commands
+## Production notes
 
-```text
-/suggestion_list [under_review|accepted|translated|rejected|all]
-/suggestion_show <uuid>
-/suggestion_status <uuid> <accepted|rejected|translated> [linked_title_uuid] | public reason | internal note
-/suggestion_restore_slot <uuid> [reason]
-```
+- Keep `BOOSTY_ENABLED=false` until the private Boosty API is smoke-tested with the creator account.
+- Build `admin-web` with `VITE_API_BASE_URL` pointing at the public API service.
+- Preserve encryption and backup keys when migrating Railway accounts.
 
-Boosty uses an undocumented private API. Keep `BOOSTY_ENABLED=false` until the creator credentials and endpoint behavior have been tested against the real account. API failures preserve the last confirmed access state.
-
-See `docs/ARCHITECTURE.md`, `docs/ACCESS_CONTROL.md`, `docs/CATALOG.md`, `docs/BOOSTY.md`, `docs/COMMUNITY.md`, `docs/SUGGESTIONS.md`, `docs/RAILWAY_DEPLOY.md` and `docs/MIGRATION_RAILWAY.md`.
+See `docs/ARCHITECTURE.md`, `docs/ACCESS_CONTROL.md`, `docs/CATALOG.md`, `docs/BOOSTY.md`, `docs/COMMUNITY.md`, `docs/SUGGESTIONS.md`, `docs/ADMIN_MINI_APP.md`, `docs/RAILWAY_DEPLOY.md` and `docs/MIGRATION_RAILWAY.md`.
