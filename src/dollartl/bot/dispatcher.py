@@ -14,6 +14,7 @@ from dollartl.bot.catalog import create_catalog_router
 from dollartl.bot.community import create_community_router
 from dollartl.bot.handlers import create_user_router
 from dollartl.bot.middleware import AccessMiddleware
+from dollartl.bot.navigation import create_navigation_router
 from dollartl.bot.suggestions import create_suggestion_router
 from dollartl.config import Settings
 
@@ -39,6 +40,7 @@ def create_bot(settings: Settings) -> Bot:
 def create_dispatcher(settings: Settings) -> Dispatcher:
     dispatcher = Dispatcher()
     dispatcher.update.outer_middleware(AccessMiddleware(settings))
+    dispatcher.include_router(create_navigation_router(settings))
     dispatcher.include_router(create_admin_router(settings))
     dispatcher.include_router(create_admin_catalog_router(settings))
     dispatcher.include_router(create_admin_boosty_router(settings))
