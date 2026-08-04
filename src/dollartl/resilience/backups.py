@@ -27,6 +27,7 @@ from dollartl.storage import S3Storage
 logger = logging.getLogger(__name__)
 BACKUP_LOCK_ID = 481_516_234
 COMMAND_TIMEOUT_SECONDS = 60 * 30
+FAILURE_RETRY_HOURS = 6
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,15 +153,19 @@ def _replicate_storage(settings: Settings) -> ReplicationResult:
                 or mimetypes.guess_type(key)[0]
                 or "application/octet-stream"
             )
-            target.client.upload_fileobj(
-                response["Body"],
-                target.bucket,
-                destination_key,
-                ExtraArgs={
-                    "ContentType": content_type,
-                    "Metadata": {"source-etag": etag, "source-size": str(size)},
-                },
-            )
+            body = response["Body"]
+            try:
+                target.client.upload_fileobj(
+                    body,
+                    target.bucket,
+                    destination_key,
+                    ExtraArgs={
+                        "ContentType": content_type,
+                        "Metadata": {"source-etag": etag, "source-size": str(size)},
+                    },
+                )
+            finally:
+                body.close()
             copied = True
             copied_count += 1
             copied_bytes += size
@@ -249,8 +254,19 @@ async def _claim_backup(settings: Settings) -> BackupRun | None:
                     .limit(1)
                 )
             ).scalar_one_or_none()
+            last_failure = (
+                await session.execute(
+                    select(BackupRun.completed_at)
+                    .where(BackupRun.status == "failed")
+                    .order_by(BackupRun.completed_at.desc())
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
             due_before = now - timedelta(hours=settings.backup_interval_hours)
-            if last_success is None or last_success <= due_before:
+            retry_before = now - timedelta(hours=FAILURE_RETRY_HOURS)
+            success_due = last_success is None or last_success <= due_before
+            failure_cooled_down = last_failure is None or last_failure <= retry_before
+            if success_due and failure_cooled_down:
                 queued = BackupRun(status="queued", trigger_type="scheduled")
                 session.add(queued)
                 await session.flush()
@@ -492,7 +508,19 @@ async def _execute_backup(bot: Bot, settings: Settings, run: BackupRun) -> None:
             completed.telegram_message_id = message_id
             completed.verification_details = verification_details
             await session.commit()
-        await _apply_retention(settings)
+        try:
+            await _apply_retention(settings)
+        except Exception as retention_error:
+            logger.exception("backup_retention_failed")
+            async with SessionFactory() as session:
+                completed = await session.get(BackupRun, run.id)
+                if completed is not None:
+                    details = dict(completed.verification_details or {})
+                    details["retention_error"] = (
+                        f"{type(retention_error).__name__}: {retention_error}"[:2000]
+                    )
+                    completed.verification_details = details
+                    await session.commit()
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
 
