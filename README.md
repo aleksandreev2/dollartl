@@ -4,23 +4,21 @@
 
 Telegram distribution bot for Dollar TL with an English reader interface and a Russian administrative Mini App.
 
-## Current version: v0.3 catalogue foundation
+## Current version: v0.4 Boosty access
 
 - universal adult-content legal-age consent;
 - permanent `Anonymous <id>` identities;
 - global temporary and permanent bans;
-- title catalogue, search and latest releases;
-- title pages and chapter-package subpages;
-- PDF + EPUB as one validated release;
-- automatic chapter-range detection for PDF and EPUB;
-- S3 originals plus Telegram `file_id` delivery cache;
-- protected direct downloads for enabled accounts;
-- assigned Boosty links for standard accounts;
-- followed-title library and release notifications;
-- deep links from `@dollartranslate` into exact titles or releases;
-- idempotent outbox delivery foundation;
+- title catalogue, releases, PDF + EPUB delivery and `@dollartranslate` publications;
+- Telegram ↔ Boosty linking through a one-time direct-message code;
+- automatic tier `4041120` membership checks;
+- VIP access to all files;
+- seven-day grace period after confirmed membership loss;
+- API-error degraded mode that never removes existing access;
+- encrypted persistence of rotated Boosty tokens;
+- manual Boosty linking fallback for the owner;
 - Docker Compose and Railway deployment configuration;
-- portable database and object-storage export/import scripts.
+- portable PostgreSQL and S3 export/import scripts.
 
 ## Local start
 
@@ -31,19 +29,8 @@ Telegram distribution bot for Dollar TL with an English reader interface and a R
    - `GET http://localhost:8000/health/live`
    - `GET http://localhost:8000/health/ready`
 
-## Temporary owner commands
+## Important
 
-Until the Russian Admin Mini App is delivered:
+Boosty uses an undocumented private API. Keep `BOOSTY_ENABLED=false` until the creator credentials and endpoint behavior have been tested against the real account. API failures preserve the last confirmed access state.
 
-```text
-/title_create English | Original | Language | ongoing | Boosty URL | Description
-/title_cover <title_slug>                 (caption on an image)
-/release_create <title_slug> <1-20> [Boosty URL]
-/attach_file <release_uuid> <pdf|epub>   (caption on a document)
-/release_override <release_uuid> <reason>
-/publish_title <title_slug>
-/publish_release <release_uuid>
-/download_access <telegram_id> on|off
-```
-
-See `docs/ARCHITECTURE.md`, `docs/ACCESS_CONTROL.md`, `docs/CATALOG.md`, `docs/RAILWAY_DEPLOY.md` and `docs/MIGRATION_RAILWAY.md`.
+See `docs/ARCHITECTURE.md`, `docs/ACCESS_CONTROL.md`, `docs/CATALOG.md`, `docs/BOOSTY.md`, `docs/RAILWAY_DEPLOY.md` and `docs/MIGRATION_RAILWAY.md`.

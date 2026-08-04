@@ -27,17 +27,11 @@ Your default public name is:
 
 This permanent anonymous identity will be displayed next to your comments until you set a custom nickname in Settings."""
 
-HOME = """📚 <b>DOLLAR TL</b>
-
-Account: <b>{anonymous_name}</b>
-
-Browse translated titles, follow new chapter packages and open your library."""
-
 HELP = """❓ <b>HELP</b>
 
 Use the buttons below to browse titles and releases.
 
-Direct PDF and EPUB downloads are currently available to the owner and manually enabled test accounts. Automatic Boosty verification will replace manual access in v0.4.
+An active eligible Boosty membership unlocks protected PDF and EPUB downloads for the entire catalogue. If membership ends, direct access remains available during a 7-day grace period.
 
 System notifications, account restrictions and important rule updates cannot be disabled."""
 

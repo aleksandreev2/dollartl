@@ -194,4 +194,9 @@ class CatalogFilesMixin(CatalogSessionMixin):
         await self.session.commit()
 
     async def can_download_directly(self, user: User, admin_telegram_id: int) -> bool:
-        return user.telegram_id == admin_telegram_id or user.manual_download_access
+        from dollartl.config import get_settings
+        from dollartl.services.boosty import BoostyService
+
+        return await BoostyService(
+            self.session, get_settings()
+        ).can_download(user, admin_telegram_id)

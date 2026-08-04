@@ -49,6 +49,30 @@ class Settings(BaseSettings):
     catalogue_page_size: int = 8
     channel_posts_enabled: bool = True
     worker_poll_seconds: int = 5
+
+    boosty_enabled: bool = False
+    boosty_api_base_url: str = "https://api.boosty.to"
+    boosty_blog_name: str = "domnekromanta"
+    boosty_tier_id: str = "4041120"
+    boosty_membership_url: str = (
+        "https://boosty.to/domnekromanta/purchase/4041120?ssource=DIRECT&share=subscription_link"
+    )
+    boosty_messages_url: str = "https://boosty.to/app/messages"
+    boosty_access_token: SecretStr = SecretStr("")
+    boosty_refresh_token: SecretStr = SecretStr("")
+    boosty_device_id: SecretStr = SecretStr("")
+    boosty_credential_key: SecretStr = SecretStr("")
+    boosty_code_ttl_minutes: int = 30
+    boosty_verification_poll_seconds: int = 30
+    boosty_membership_sync_seconds: int = 900
+    boosty_grace_days: int = 7
+    boosty_request_timeout_seconds: int = 20
+    boosty_contacts_limit: int = 100
+    boosty_subscribers_page_size: int = 100
+    boosty_max_subscriber_pages: int = 100
+    boosty_circuit_breaker_failures: int = 3
+    boosty_circuit_breaker_seconds: int = 300
+
     maintenance_mode: bool = False
 
     @field_validator("app_timezone")
@@ -62,6 +86,16 @@ class Settings(BaseSettings):
         "ban_notice_interval_hours",
         "catalogue_page_size",
         "worker_poll_seconds",
+        "boosty_code_ttl_minutes",
+        "boosty_verification_poll_seconds",
+        "boosty_membership_sync_seconds",
+        "boosty_grace_days",
+        "boosty_request_timeout_seconds",
+        "boosty_contacts_limit",
+        "boosty_subscribers_page_size",
+        "boosty_max_subscriber_pages",
+        "boosty_circuit_breaker_failures",
+        "boosty_circuit_breaker_seconds",
     )
     @classmethod
     def validate_positive_integer(cls, value: int) -> int:
