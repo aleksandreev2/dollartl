@@ -30,8 +30,8 @@ def home_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="📖 My Library", callback_data="catalog:library"),
             ],
             [
-                InlineKeyboardButton(text="💡 Suggest a Title", callback_data="soon:suggest"),
-                InlineKeyboardButton(text="📋 My Suggestions", callback_data="soon:my_suggestions"),
+                InlineKeyboardButton(text="💡 Suggest a Title", callback_data="menu:suggest"),
+                InlineKeyboardButton(text="📋 My Suggestions", callback_data="sug:mine"),
             ],
             [
                 InlineKeyboardButton(text="⚙️ Settings", callback_data="menu:settings"),
@@ -69,7 +69,8 @@ def catalogue_keyboard(
     rows = [
         [
             InlineKeyboardButton(
-                text=title.english_title[:55], callback_data=f"catalog:title:{title.id}"
+                text=title.english_title[:55],
+                callback_data=f"catalog:title:{title.id}",
             )
         ]
         for title in titles
@@ -77,11 +78,17 @@ def catalogue_keyboard(
     navigation: list[InlineKeyboardButton] = []
     if page > 0:
         navigation.append(
-            InlineKeyboardButton(text="◀️ Previous", callback_data=f"catalog:list:{page - 1}")
+            InlineKeyboardButton(
+                text="◀️ Previous",
+                callback_data=f"catalog:list:{page - 1}",
+            )
         )
     if has_next:
         navigation.append(
-            InlineKeyboardButton(text="Next ▶️", callback_data=f"catalog:list:{page + 1}")
+            InlineKeyboardButton(
+                text="Next ▶️",
+                callback_data=f"catalog:list:{page + 1}",
+            )
         )
     if navigation:
         rows.append(navigation)
@@ -95,7 +102,11 @@ def catalogue_keyboard(
 
 
 def latest_keyboard(
-    releases: list[Release], titles: dict[UUID, Title], *, page: int, has_next: bool
+    releases: list[Release],
+    titles: dict[UUID, Title],
+    *,
+    page: int,
+    has_next: bool,
 ) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     for release in releases:
@@ -104,18 +115,25 @@ def latest_keyboard(
         rows.append(
             [
                 InlineKeyboardButton(
-                    text=label[:60], callback_data=f"catalog:release:{release.id}"
+                    text=label[:60],
+                    callback_data=f"catalog:release:{release.id}",
                 )
             ]
         )
     navigation: list[InlineKeyboardButton] = []
     if page > 0:
         navigation.append(
-            InlineKeyboardButton(text="◀️ Previous", callback_data=f"catalog:latest:{page - 1}")
+            InlineKeyboardButton(
+                text="◀️ Previous",
+                callback_data=f"catalog:latest:{page - 1}",
+            )
         )
     if has_next:
         navigation.append(
-            InlineKeyboardButton(text="Next ▶️", callback_data=f"catalog:latest:{page + 1}")
+            InlineKeyboardButton(
+                text="Next ▶️",
+                callback_data=f"catalog:latest:{page + 1}",
+            )
         )
     if navigation:
         rows.append(navigation)
@@ -127,7 +145,8 @@ def search_results_keyboard(titles: list[Title]) -> InlineKeyboardMarkup:
     rows = [
         [
             InlineKeyboardButton(
-                text=title.english_title[:55], callback_data=f"catalog:title:{title.id}"
+                text=title.english_title[:55],
+                callback_data=f"catalog:title:{title.id}",
             )
         ]
         for title in titles
@@ -195,7 +214,10 @@ def title_keyboard(
 
 
 def release_keyboard(
-    release: Release, *, direct_download: bool, boosty_url: str | None
+    release: Release,
+    *,
+    direct_download: bool,
+    boosty_url: str | None,
 ) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     if direct_download:
@@ -208,14 +230,12 @@ def release_keyboard(
             ]
         )
     elif boosty_url:
-        rows.append([InlineKeyboardButton(text="🌐 Open Boosty Publication", url=boosty_url)])
+        rows.append(
+            [InlineKeyboardButton(text="🌐 Open Boosty Publication", url=boosty_url)]
+        )
     else:
         rows.append(
-            [
-                InlineKeyboardButton(
-                    text="💎 Boosty Access", callback_data="boosty:menu"
-                )
-            ]
+            [InlineKeyboardButton(text="💎 Boosty Access", callback_data="boosty:menu")]
         )
     rows.extend(
         [
@@ -237,7 +257,8 @@ def release_keyboard(
             ],
             [
                 InlineKeyboardButton(
-                    text="◀️ Back to Title", callback_data=f"catalog:title:{release.title_id}"
+                    text="◀️ Back to Title",
+                    callback_data=f"catalog:title:{release.title_id}",
                 )
             ],
         ]
@@ -249,7 +270,8 @@ def library_keyboard(titles: list[Title]) -> InlineKeyboardMarkup:
     rows = [
         [
             InlineKeyboardButton(
-                text=title.english_title[:55], callback_data=f"catalog:title:{title.id}"
+                text=title.english_title[:55],
+                callback_data=f"catalog:title:{title.id}",
             )
         ]
         for title in titles

@@ -8,7 +8,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
     )
 
     app_env: Literal["development", "test", "production"] = "development"
@@ -77,6 +79,15 @@ class Settings(BaseSettings):
     boosty_circuit_breaker_failures: int = 3
     boosty_circuit_breaker_seconds: int = 300
 
+    suggestion_rules_version: int = 1
+    suggestion_standard_monthly_limit: int = 1
+    suggestion_vip_monthly_limit: int = 5
+    suggestion_standard_chapter_limit: int = 200
+    suggestion_source_max: int = 10
+    suggestion_archive_max_entries: int = 500
+    suggestion_archive_max_unpacked_bytes: int = 200 * 1024 * 1024
+    suggestion_antivirus_command: str = ""
+
     maintenance_mode: bool = False
 
     @field_validator("app_timezone")
@@ -101,6 +112,13 @@ class Settings(BaseSettings):
         "boosty_max_subscriber_pages",
         "boosty_circuit_breaker_failures",
         "boosty_circuit_breaker_seconds",
+        "suggestion_rules_version",
+        "suggestion_standard_monthly_limit",
+        "suggestion_vip_monthly_limit",
+        "suggestion_standard_chapter_limit",
+        "suggestion_source_max",
+        "suggestion_archive_max_entries",
+        "suggestion_archive_max_unpacked_bytes",
     )
     @classmethod
     def validate_positive_integer(cls, value: int) -> int:

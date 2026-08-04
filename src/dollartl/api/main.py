@@ -24,7 +24,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await engine.dispose()
 
 
-app = FastAPI(title=settings.app_name, version="0.5.0", lifespan=lifespan)
+app = FastAPI(title=settings.app_name, version="0.6.0", lifespan=lifespan)
 
 
 @app.get("/health/live", include_in_schema=False)
