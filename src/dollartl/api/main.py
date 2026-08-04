@@ -18,6 +18,7 @@ from dollartl.admin.raw_router import router as raw_admin_router
 from dollartl.admin.resilience_router import router as resilience_admin_router
 from dollartl.admin.router import router as admin_router
 from dollartl.admin.version_router import router as version_admin_router
+from dollartl.api.bootstrap import configure_telegram_webhook, verify_storage
 from dollartl.bot.dispatcher import create_bot, create_dispatcher
 from dollartl.config import get_settings
 from dollartl.db.session import engine
@@ -32,6 +33,8 @@ bot = create_bot(settings) if settings.telegram_bot_token.get_secret_value() els
 dispatcher = create_dispatcher(settings)
 admin_web_dir = Path(os.getenv("ADMIN_WEB_DIR", "/app/admin-web-dist"))
 admin_web_verified = False
+storage_verified = False
+telegram_verified = False
 _ADMIN_ASSET_RE = re.compile(r"(?:src|href)=[\"'](/admin/assets/[^\"'?#]+)[\"']")
 
 
@@ -84,6 +87,19 @@ async def verify_admin_web(app: FastAPI) -> None:
     )
 
 
+async def verify_production_dependencies(app: FastAPI) -> None:
+    global storage_verified, telegram_verified
+
+    await verify_admin_web(app)
+    await verify_storage(settings)
+    storage_verified = True
+
+    if bot is None:
+        raise RuntimeError("TELEGRAM_BOT_TOKEN is required in production")
+    await configure_telegram_webhook(bot, dispatcher, settings)
+    telegram_verified = True
+
+
 async def api_heartbeat(stop: asyncio.Event, instance_id: str) -> None:
     while not stop.is_set():
         try:
@@ -104,7 +120,7 @@ async def api_heartbeat(stop: asyncio.Event, instance_id: str) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if settings.app_env == "production":
-        await verify_admin_web(app)
+        await verify_production_dependencies(app)
 
     stop = asyncio.Event()
     instance_id = api_instance_id()
@@ -163,14 +179,18 @@ async def ready(response: Response) -> dict[str, object]:
             "status": "not_ready",
             "error": f"{type(exc).__name__}: {exc}",
         }
+
+    production_checks_ok = admin_web_verified and storage_verified and telegram_verified
     if not migrations.matches or (
-        settings.app_env == "production" and not admin_web_verified
+        settings.app_env == "production" and not production_checks_ok
     ):
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {
             "status": "not_ready",
             "database": "ok",
             "admin_web": "ok" if admin_web_verified else "not_ready",
+            "storage": "ok" if storage_verified else "not_ready",
+            "telegram": "ok" if telegram_verified else "not_ready",
             "migrations": {
                 "current": list(migrations.current),
                 "expected": list(migrations.expected),
@@ -180,6 +200,9 @@ async def ready(response: Response) -> dict[str, object]:
         "status": "ready",
         "database": "ok",
         "admin_web": "ok" if admin_web_verified else "not_checked",
+        "storage": "ok" if storage_verified else "not_checked",
+        "telegram": "ok" if telegram_verified else "not_checked",
+        "maintenance_mode": settings.maintenance_mode,
         "migrations": list(migrations.current),
     }
 
