@@ -5,7 +5,12 @@ from aiogram.filters import Command, CommandObject
 from aiogram.types import CallbackQuery, Message
 
 from dollartl.bot.catalog import send_deep_link_target
-from dollartl.bot.keyboards import back_home_keyboard, home_keyboard, settings_keyboard
+from dollartl.bot.keyboards import (
+    back_home_keyboard,
+    home_keyboard,
+    persistent_navigation_keyboard,
+    settings_keyboard,
+)
 from dollartl.bot.texts import COMING_SOON, HELP, REGISTRATION_COMPLETE
 from dollartl.config import Settings
 from dollartl.db.models import User
@@ -31,6 +36,11 @@ def create_user_router(settings: Settings) -> Router:
                 REGISTRATION_COMPLETE.format(anonymous_name=db_user.anonymous_name),
                 reply_markup=home_keyboard(),
             )
+        await bot.send_message(
+            callback.from_user.id,
+            "Navigation is ready below. Use <code>/cancel</code> at any time to stop the current action.",
+            reply_markup=persistent_navigation_keyboard(),
+        )
         if pending_token:
             opened = await send_deep_link_target(
                 bot=bot,
@@ -52,6 +62,10 @@ def create_user_router(settings: Settings) -> Router:
     ) -> None:
         token = (command.args or "").strip()
         if token:
+            await message.answer(
+                "Navigation is ready below.",
+                reply_markup=persistent_navigation_keyboard(),
+            )
             opened = await send_deep_link_target(
                 bot=bot,
                 chat_id=message.chat.id,
@@ -62,8 +76,8 @@ def create_user_router(settings: Settings) -> Router:
             if opened:
                 return
         await message.answer(
-            await _home_text(db_user, settings),
-            reply_markup=home_keyboard(),
+            await home_text(db_user, settings),
+            reply_markup=persistent_navigation_keyboard(),
         )
 
     @router.callback_query(F.data == "menu:home")
@@ -71,7 +85,7 @@ def create_user_router(settings: Settings) -> Router:
         await callback.answer()
         if isinstance(callback.message, Message):
             await callback.message.edit_text(
-                await _home_text(db_user, settings),
+                await home_text(db_user, settings),
                 reply_markup=home_keyboard(),
             )
 
@@ -122,14 +136,14 @@ def create_user_router(settings: Settings) -> Router:
     @router.message()
     async def fallback(message: Message, db_user: User) -> None:
         await message.answer(
-            await _home_text(db_user, settings),
-            reply_markup=home_keyboard(),
+            await home_text(db_user, settings),
+            reply_markup=persistent_navigation_keyboard(),
         )
 
     return router
 
 
-async def _home_text(user: User, settings: Settings) -> str:
+async def home_text(user: User, settings: Settings) -> str:
     async with SessionFactory() as session:
         status = await BoostyService(session, settings).get_status(user.id)
     access = _access_label(user, status, settings)
@@ -139,7 +153,7 @@ async def _home_text(user: User, settings: Settings) -> str:
         f"Account: <b>{user.anonymous_name}</b>\n"
         f"Account level: <b>{account}</b>\n"
         f"Boosty access: <b>{access}</b>\n\n"
-        "Browse translated titles, follow new chapter packages and open your library."
+        "Use the navigation buttons below for the main sections. Open <b>Menu</b> for Boosty, suggestions, settings and help."
     )
 
 
