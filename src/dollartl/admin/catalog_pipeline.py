@@ -109,10 +109,13 @@ async def analyse_pipeline(
             analysed.append(result)
 
         payload = merge_catalog_analysis(analysed, source_url=source_url)
-        suggested = payload.get("suggested") or {}
-        payload["possible_duplicates"] = await _possible_duplicates(
+        suggested = payload.get("suggested")
+        suggested_title = (
             str(suggested.get("english_title") or "")
+            if isinstance(suggested, dict)
+            else ""
         )
+        payload["possible_duplicates"] = await _possible_duplicates(suggested_title)
         return payload
     finally:
         for path in temporary:
