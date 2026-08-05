@@ -111,6 +111,7 @@ async def test_configure_telegram_webhook() -> None:
         "settings",
         "help",
         "cancel",
+        "admin",
     ]
     assert bot.set_webhook_kwargs["secret_token"] == "safe_secret-123"
     assert bot.set_webhook_kwargs["drop_pending_updates"] is False
