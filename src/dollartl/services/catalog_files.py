@@ -4,8 +4,15 @@ from uuid import UUID
 
 from sqlalchemy import and_, select, update
 
-from dollartl.db.catalog_revision_models import FileVersionInspection
-from dollartl.db.models import AuditLog, DownloadEvent, FileVersion, Release, ReleaseFile, User
+from dollartl.db.catalog_revision_models import FileVersionInspection, ReleaseRevision
+from dollartl.db.models import (
+    AuditLog,
+    DownloadEvent,
+    FileVersion,
+    Release,
+    ReleaseFile,
+    User,
+)
 from dollartl.services.catalog_types import CatalogSessionMixin, ReleaseFileBundle
 
 
@@ -24,9 +31,16 @@ class CatalogFilesMixin(CatalogSessionMixin):
         telegram_file_unique_id: str | None,
         detection: dict[str, object],
         admin_telegram_id: int,
+        commit: bool | None = None,
     ) -> FileVersion:
         if file_kind not in {"pdf", "epub"}:
             raise ValueError("file_kind must be pdf or epub")
+        if commit is None:
+            # Catalog Studio creates a metadata revision before attaching the file.
+            # Keep both records in one transaction; legacy callers still commit here.
+            commit = not any(
+                isinstance(item, ReleaseRevision) for item in self.session.new
+            )
         release_file = (
             await self.session.execute(
                 select(ReleaseFile).where(
@@ -63,7 +77,10 @@ class CatalogFilesMixin(CatalogSessionMixin):
         self.session.add(version)
         await self.session.flush()
         self.session.add(
-            FileVersionInspection(file_version_id=version.id, inspection=detection)
+            FileVersionInspection(
+                file_version_id=version.id,
+                inspection=detection,
+            )
         )
 
         report = dict(release.detection_report or {})
@@ -84,7 +101,10 @@ class CatalogFilesMixin(CatalogSessionMixin):
                 },
             )
         )
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
+        else:
+            await self.session.flush()
         return version
 
     async def _refresh_release_validation(self, release: Release) -> None:
@@ -94,6 +114,7 @@ class CatalogFilesMixin(CatalogSessionMixin):
             release.validation_status = "pending"
             release.validation_message = f"Missing files: {', '.join(missing).upper()}"
             return
+
         ranges: dict[str, tuple[int | None, int | None]] = {}
         for kind in ("pdf", "epub"):
             item = report.get(kind) or {}
@@ -194,6 +215,6 @@ class CatalogFilesMixin(CatalogSessionMixin):
         from dollartl.config import get_settings
         from dollartl.services.boosty import BoostyService
 
-        return await BoostyService(self.session, get_settings()).can_download(
-            user, admin_telegram_id
-        )
+        return await BoostyService(
+            self.session, get_settings()
+        ).can_download(user, admin_telegram_id)
