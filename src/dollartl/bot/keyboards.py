@@ -240,18 +240,26 @@ def title_keyboard(
     releases: list[Release],
     *,
     followed: bool,
+    thanked: bool = False,
+    direct_download: bool = False,
     donate_url: str = DONATE_URL,
 ) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     for release in releases:
-        rows.append(
-            [
+        release_row = [
+            InlineKeyboardButton(
+                text=f"📦 {release.chapter_label}",
+                callback_data=f"catalog:release:{release.id}",
+            )
+        ]
+        if direct_download:
+            release_row.append(
                 InlineKeyboardButton(
-                    text=f"📦 {release.chapter_label}",
-                    callback_data=f"catalog:release:{release.id}",
+                    text="⬇️ Download",
+                    callback_data=f"catalog:download:{release.id}",
                 )
-            ]
-        )
+            )
+        rows.append(release_row)
     rows.extend(
         [
             [
@@ -271,14 +279,15 @@ def title_keyboard(
             ],
             [
                 InlineKeyboardButton(
-                    text="🔕 Unfollow Title" if followed else "🔔 Follow Title",
-                    callback_data=f"catalog:follow:{title.id}",
+                    text="✅ Thank you." if thanked else "Thank you.",
+                    callback_data=f"community:thanks:{title.id}",
                 )
             ],
             [
                 InlineKeyboardButton(text="💝 Donate", url=donate_url),
                 InlineKeyboardButton(
-                    text="Thank you.", callback_data="community:thanks"
+                    text="🔕 Unfollow Novel" if followed else "🔔 Follow Novel",
+                    callback_data=f"catalog:follow:{title.id}",
                 ),
             ],
         ]
