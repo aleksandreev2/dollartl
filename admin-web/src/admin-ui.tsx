@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 export type Section =
   | "overview"
@@ -78,7 +85,6 @@ const labels: Record<string, string> = {
   resolved: "Решена",
   reviewed: "Проверено",
   fixed: "Исправлено",
-  dismissed: "Отклонено",
 };
 
 export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
@@ -142,7 +148,47 @@ export function bytes(value: number) {
 }
 export function Badge({ value }: { value: string }) { return <span className={`badge badge-${value.replaceAll("_", "-")}`}>{labels[value] || value}</span>; }
 export function Header({ title, description, action }: { title: string; description: string; action?: React.ReactNode }) { return <header className="page-head"><div><h1>{title}</h1><p>{description}</p></div>{action}</header>; }
-export function ErrorBox({ text }: { text: string }) { return <div className="error-box">{text}</div>; }
-export function Notice({ text }: { text: string }) { return <div className="notice">{text}</div>; }
-export function Loading() { return <div className="loading"><span className="spinner"/>Загрузка…</div>; }
+export function ErrorBox({ text }: { text: string }) { return <div className="error-box" role="alert">{text}</div>; }
+export function Notice({ text }: { text: string }) { return <div className="notice" role="status">{text}</div>; }
+export function Loading({ label = "Загрузка…" }: { label?: string }) {
+  return <div className="loading loading-skeleton" role="status" aria-live="polite" aria-label={label}>
+    <span className="spinner" aria-hidden="true"/>
+    <span className="loading-copy">{label}</span>
+    <span className="skeleton-bars" aria-hidden="true"><i/><i/><i/></span>
+  </div>;
+}
 export function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="field"><span>{label}</span>{children}</label>; }
+
+export type ToastTone = "success" | "error" | "info";
+type ToastItem = { id: string; message: string; tone: ToastTone };
+type ToastContextValue = { push: (message: string, tone?: ToastTone) => void };
+const ToastContext = createContext<ToastContextValue | null>(null);
+
+export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const [items, setItems] = useState<ToastItem[]>([]);
+  const value = useMemo<ToastContextValue>(() => ({
+    push(message, tone = "info") {
+      const id = crypto.randomUUID();
+      setItems((current) => [...current.slice(-3), { id, message, tone }]);
+      window.setTimeout(() => setItems((current) => current.filter((item) => item.id !== id)), 5000);
+    },
+  }), []);
+  return <ToastContext.Provider value={value}>
+    {children}
+    <div className="toast-viewport" aria-live="polite" aria-relevant="additions">
+      {items.map((item) => <button
+        type="button"
+        key={item.id}
+        className={`toast toast-${item.tone}`}
+        onClick={() => setItems((current) => current.filter((entry) => entry.id !== item.id))}
+        aria-label={`${item.message}. Закрыть уведомление`}
+      ><span>{item.message}</span><b aria-hidden="true">×</b></button>)}
+    </div>
+  </ToastContext.Provider>;
+}
+
+export function useToast() {
+  const context = useContext(ToastContext);
+  if (!context) throw new Error("useToast must be used inside ToastProvider");
+  return context;
+}

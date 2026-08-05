@@ -1,106 +1,83 @@
-import React, { FormEvent, useState } from "react";
+import React, { FormEvent, useMemo, useState } from "react";
 import { api, confirmAction } from "./api";
-import type { BroadcastItem, CommentItem, Overview, RatingItem, ReleaseItem, ReportItem, SuggestionItem, TitleItem, UserItem } from "./types";
-import { Badge, ErrorBox, Field, Header, Icon, Loading, Notice, bytes, date, useData, type IconName, type Section } from "./admin-ui";
+import type { BroadcastItem } from "./types";
+import { Badge, ErrorBox, Field, Header, Icon, Loading, date, useData, useToast } from "./admin-ui";
 
-export function OverviewView({ onNavigate }: { onNavigate: (section: Section) => void }) {
-  const state = useData(() => api<Overview>("/overview"), []);
-  const cards: Array<[string, string, IconName]> = [
-    ["users", "ĞŸĞ¾Ğ»ÑŒĞ·Ğ¾Ğ²Ğ°Ñ‚ĞµĞ»Ğ¸", "users"], ["active_vip", "ĞĞºÑ‚Ğ¸Ğ²Ğ½Ñ‹Ğµ VIP", "diamond"],
-    ["grace", "Grace", "history"], ["published_titles", "Ğ¢Ğ°Ğ¹Ñ‚Ğ»Ñ‹", "book"],
-    ["releases", "ĞŸĞ°ĞºĞµÑ‚Ñ‹", "folder"], ["suggestions_pending", "Ğ—Ğ°ÑĞ²ĞºĞ¸", "sparkles"],
-    ["reports_open", "Ğ–Ğ°Ğ»Ğ¾Ğ±Ñ‹", "alert"], ["ratings_new", "ĞÑ†ĞµĞ½ĞºĞ¸", "message"],
-    ["active_bans", "Ğ‘Ğ°Ğ½Ñ‹", "shield"], ["broadcasts_running", "Ğ Ğ°ÑÑÑ‹Ğ»ĞºĞ¸", "send"],
-    ["boosty_errors", "ĞÑˆĞ¸Ğ±ĞºĞ¸ Boosty", "diamond"],
-  ];
-  const quick: Array<[Section, string, string, IconName]> = [
-    ["suggestions", "ĞŸÑ€Ğ¾Ğ²ĞµÑ€Ğ¸Ñ‚ÑŒ Ğ¿Ñ€ĞµĞ´Ğ»Ğ¾Ğ¶ĞµĞ½Ğ¸Ñ", "Ğ—Ğ°ÑĞ²ĞºĞ¸ Ğ¸ raw-Ñ„Ğ°Ğ¹Ğ»Ñ‹", "sparkles"],
-    ["community", "Ğ Ğ°Ğ·Ğ¾Ğ±Ñ€Ğ°Ñ‚ÑŒ Ğ¶Ğ°Ğ»Ğ¾Ğ±Ñ‹", "ĞšĞ¾Ğ¼Ğ¼ĞµĞ½Ñ‚Ğ°Ñ€Ğ¸Ğ¸ Ğ¸ Ğ¾Ñ†ĞµĞ½ĞºĞ¸", "message"],
-    ["catalog", "Ğ”Ğ¾Ğ±Ğ°Ğ²Ğ¸Ñ‚ÑŒ Ğ¿ÑƒĞ±Ğ»Ğ¸ĞºĞ°Ñ†Ğ¸Ñ", "Ğ¢Ğ°Ğ¹Ñ‚Ğ» Ğ¸Ğ»Ğ¸ Ğ¿Ğ°ĞºĞµÑ‚ Ğ³Ğ»Ğ°Ğ²", "book"],
-    ["broadcasts", "Ğ¡Ğ¾Ğ·Ğ´Ğ°Ñ‚ÑŒ Ñ€Ğ°ÑÑÑ‹Ğ»ĞºÑƒ", "ĞÑ‚Ğ¿Ñ€Ğ°Ğ²ĞºĞ° Ğ°ÑƒĞ´Ğ¸Ñ‚Ğ¾Ñ€Ğ¸Ğ¸", "send"],
-  ];
-  return <section className="page">
-    <Header title="ĞĞ±Ğ·Ğ¾Ñ€" description="Ğ¡Ğ¾ÑÑ‚Ğ¾ÑĞ½Ğ¸Ğµ Ğ±Ğ¾Ñ‚Ğ° Ğ¸ Ğ¾Ñ‡ĞµÑ€ĞµĞ´Ğ¸, Ñ‚Ñ€ĞµĞ±ÑƒÑÑ‰Ğ¸Ğµ Ğ²Ğ½Ğ¸Ğ¼Ğ°Ğ½Ğ¸Ñ." action={<button className="with-icon" onClick={state.reload}><Icon name="refresh"/>ĞĞ±Ğ½Ğ¾Ğ²Ğ¸Ñ‚ÑŒ</button>} />
-    {state.error && <ErrorBox text={state.error}/>} 
-    {state.loading || !state.data ? <Loading/> : <div className="metrics">{cards.map(([key, label, icon]) => <article key={key}><span className="metric-icon"><Icon name={icon}/></span><div><span>{label}</span><strong>{state.data?.[key] || 0}</strong></div></article>)}</div>}
-    <div className="section-heading"><div><h2>Ğ‘Ñ‹ÑÑ‚Ñ€Ñ‹Ğµ Ğ´ĞµĞ¹ÑÑ‚Ğ²Ğ¸Ñ</h2><p>ĞÑĞ½Ğ¾Ğ²Ğ½Ñ‹Ğµ Ñ€Ğ°Ğ±Ğ¾Ñ‡Ğ¸Ğµ ÑÑ†ĞµĞ½Ğ°Ñ€Ğ¸Ğ¸ Ğ±ĞµĞ· Ğ¿Ğ¾Ğ¸ÑĞºĞ° Ğ¿Ğ¾ Ğ¼ĞµĞ½Ñ.</p></div></div>
-    <div className="quick-grid">{quick.map(([target, title, description, icon]) => <button key={target} className="quick-action" onClick={() => onNavigate(target)}><span><Icon name={icon}/></span><div><strong>{title}</strong><small>{description}</small></div><Icon name="chevron"/></button>)}</div>
-  </section>;
+type RetryPreview = {
+  requested: number;
+  found: number;
+  eligible_broadcasts: number;
+  retriable_recipients: number;
+  missing: number;
+  items: Array<{ id: string; recipients: number }>;
+};
+
+type RetryModal = { key: string; preview: RetryPreview } | null;
+
+function idempotencyKey() {
+  return `broadcast-retry:${Date.now()}:${crypto.randomUUID()}`;
 }
-
-export function CatalogView() {
-  const titles = useData(() => api<TitleItem[]>("/titles"), []);
-  const releases = useData(() => api<ReleaseItem[]>("/releases"), []);
-  const [notice, setNotice] = useState("");
-  async function createTitle(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); const form = new FormData(event.currentTarget);
-    try { await api("/titles", { method: "POST", body: JSON.stringify({ english_title: form.get("english_title"), original_title: form.get("original_title"), original_language: form.get("original_language"), publication_status: form.get("publication_status"), boosty_url: form.get("boosty_url") || null, description: form.get("description") || "", aliases: [] }) }); event.currentTarget.reset(); await titles.reload(); setNotice("Ğ¢Ğ°Ğ¹Ñ‚Ğ» ÑĞ¾Ğ·Ğ´Ğ°Ğ½."); }
-    catch (cause) { setNotice(cause instanceof Error ? cause.message : String(cause)); }
-  }
-  async function createRelease(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); const form = new FormData(event.currentTarget);
-    try { await api("/releases", { method: "POST", body: JSON.stringify({ title_id: form.get("title_id"), chapter_start: Number(form.get("chapter_start")), chapter_end: Number(form.get("chapter_end")), boosty_url: form.get("boosty_url") || null }) }); event.currentTarget.reset(); await releases.reload(); setNotice("ĞŸĞ°ĞºĞµÑ‚ ÑĞ¾Ğ·Ğ´Ğ°Ğ½. Ğ—Ğ°Ğ³Ñ€ÑƒĞ·Ğ¸Ñ‚Ğµ PDF Ğ¸ EPUB."); }
-    catch (cause) { setNotice(cause instanceof Error ? cause.message : String(cause)); }
-  }
-  async function publish(path: string, question: string) {
-    if (!(await confirmAction(question))) return;
-    try { await api(path, { method: "POST" }); await Promise.all([titles.reload(), releases.reload()]); setNotice("ĞĞ¿ÑƒĞ±Ğ»Ğ¸ĞºĞ¾Ğ²Ğ°Ğ½Ğ¾ Ğ¸ Ğ¿Ğ¾ÑÑ‚Ğ°Ğ²Ğ»ĞµĞ½Ğ¾ Ğ² Ğ¾Ñ‡ĞµÑ€ĞµĞ´ÑŒ ÑƒĞ²ĞµĞ´Ğ¾Ğ¼Ğ»ĞµĞ½Ğ¸Ğ¹."); }
-    catch (cause) { setNotice(cause instanceof Error ? cause.message : String(cause)); }
-  }
-  async function upload(id: string, kind: string, file: File) {
-    const body = new FormData(); body.set("file", file);
-    try { await api(`/releases/${id}/files/${kind}`, { method: "POST", body }); await releases.reload(); setNotice(`${kind.toUpperCase()} Ğ·Ğ°Ğ³Ñ€ÑƒĞ¶ĞµĞ½ Ğ¸ Ğ¿Ñ€Ğ¾Ğ²ĞµÑ€ĞµĞ½.`); }
-    catch (cause) { setNotice(cause instanceof Error ? cause.message : String(cause)); }
-  }
-  return <section className="page"><Header title="Ğ¢Ğ°Ğ¹Ñ‚Ğ»Ñ‹ Ğ¸ Ğ¿Ğ°ĞºĞµÑ‚Ñ‹" description="Ğ¡Ğ¾Ğ·Ğ´Ğ°Ğ½Ğ¸Ğµ, Ğ¿Ñ€Ğ¾Ğ²ĞµÑ€ĞºĞ° Ñ„Ğ°Ğ¹Ğ»Ğ¾Ğ² Ğ¸ Ğ¿ÑƒĞ±Ğ»Ğ¸ĞºĞ°Ñ†Ğ¸Ñ Ğ±ĞµĞ· CLI." />{notice && <Notice text={notice}/>}<div className="columns"><form className="panel form" onSubmit={createTitle}><h3>ĞĞ¾Ğ²Ñ‹Ğ¹ Ñ‚Ğ°Ğ¹Ñ‚Ğ»</h3><Field label="ĞĞ½Ğ³Ğ»Ğ¸Ğ¹ÑĞºĞ¾Ğµ Ğ½Ğ°Ğ·Ğ²Ğ°Ğ½Ğ¸Ğµ"><input name="english_title" required/></Field><Field label="ĞÑ€Ğ¸Ğ³Ğ¸Ğ½Ğ°Ğ»ÑŒĞ½Ğ¾Ğµ Ğ½Ğ°Ğ·Ğ²Ğ°Ğ½Ğ¸Ğµ"><input name="original_title" required/></Field><Field label="Ğ¯Ğ·Ñ‹Ğº"><input name="original_language" required/></Field><Field label="Ğ¡Ñ‚Ğ°Ñ‚ÑƒÑ"><select name="publication_status"><option value="ongoing">ĞŸÑ€Ğ¾Ğ´Ğ¾Ğ»Ğ¶Ğ°ĞµÑ‚ÑÑ</option><option value="completed">Ğ—Ğ°Ğ²ĞµÑ€ÑˆÑ‘Ğ½</option><option value="hiatus">ĞŸĞ°ÑƒĞ·Ğ°</option></select></Field><Field label="Boosty URL"><input name="boosty_url" type="url"/></Field><Field label="ĞĞ¿Ğ¸ÑĞ°Ğ½Ğ¸Ğµ"><textarea name="description" rows={4}/></Field><button className="primary">Ğ¡Ğ¾Ğ·Ğ´Ğ°Ñ‚ÑŒ</button></form><form className="panel form" onSubmit={createRelease}><h3>ĞĞ¾Ğ²Ñ‹Ğ¹ Ğ¿Ğ°ĞºĞµÑ‚</h3><Field label="Ğ¢Ğ°Ğ¹Ñ‚Ğ»"><select name="title_id" required><option value="">Ğ’Ñ‹Ğ±ĞµÑ€Ğ¸Ñ‚Ğµ</option>{titles.data?.map(item => <option key={item.id} value={item.id}>{item.english_title}</option>)}</select></Field><div className="row"><Field label="Ğ¡ Ğ³Ğ»Ğ°Ğ²Ñ‹"><input name="chapter_start" type="number" min="0" required/></Field><Field label="ĞŸĞ¾ Ğ³Ğ»Ğ°Ğ²Ñƒ"><input name="chapter_end" type="number" min="0" required/></Field></div><Field label="Boosty URL"><input name="boosty_url" type="url"/></Field><button className="primary">Ğ¡Ğ¾Ğ·Ğ´Ğ°Ñ‚ÑŒ Ğ¿Ğ°ĞºĞµÑ‚</button></form></div><div className="panel"><h3>Ğ¢Ğ°Ğ¹Ñ‚Ğ»Ñ‹</h3>{titles.loading ? <Loading/> : titles.data?.map(item => <div className="item" key={item.id}><div><strong>{item.english_title}</strong><small>{item.original_title}</small></div><div><Badge value={item.is_published ? "completed" : "draft"}/>{!item.is_published && <button onClick={() => publish(`/titles/${item.id}/publish`, "ĞĞ¿ÑƒĞ±Ğ»Ğ¸ĞºĞ¾Ğ²Ğ°Ñ‚ÑŒ Ñ‚Ğ°Ğ¹Ñ‚Ğ»?")}>ĞĞ¿ÑƒĞ±Ğ»Ğ¸ĞºĞ¾Ğ²Ğ°Ñ‚ÑŒ</button>}</div></div>)}</div><div className="panel"><h3>ĞŸĞ°ĞºĞµÑ‚Ñ‹</h3>{releases.loading ? <Loading/> : releases.data?.map(item => <div className="item release" key={item.id}><div><strong>{item.chapter_label}</strong><small>{item.validation_message || "ĞŸÑ€Ğ¾Ğ²ĞµÑ€ĞºĞ° Ğ¾Ğ¶Ğ¸Ğ´Ğ°ĞµÑ‚ÑÑ"}</small><Badge value={item.validation_status}/></div><div className="actions"><label>PDF<input hidden type="file" accept=".pdf" onChange={(event: React.ChangeEvent<HTMLInputElement>) => event.target.files?.[0] && upload(item.id, "pdf", event.target.files[0])}/></label><label>EPUB<input hidden type="file" accept=".epub" onChange={(event: React.ChangeEvent<HTMLInputElement>) => event.target.files?.[0] && upload(item.id, "epub", event.target.files[0])}/></label>{!item.is_published && <button className="primary" onClick={() => publish(`/releases/${item.id}/publish`, "ĞĞ¿ÑƒĞ±Ğ»Ğ¸ĞºĞ¾Ğ²Ğ°Ñ‚ÑŒ Ğ¿Ğ°ĞºĞµÑ‚?")}>ĞĞ¿ÑƒĞ±Ğ»Ğ¸ĞºĞ¾Ğ²Ğ°Ñ‚ÑŒ</button>}</div></div>)}</div></section>;
-}
-
-export function UsersView() {
-  const [query, setQuery] = useState("");
-  const state = useData(() => api<UserItem[]>(`/users?query=${encodeURIComponent(query)}`), [query]);
-  const [notice, setNotice] = useState("");
-  async function ban(item: UserItem) { const days = window.prompt("Ğ¡Ñ€Ğ¾Ğº Ğ² Ğ´Ğ½ÑÑ… Ğ¸Ğ»Ğ¸ permanent:", "7"); if (!days) return; const reason = window.prompt("ĞŸÑƒĞ±Ğ»Ğ¸Ñ‡Ğ½Ğ°Ñ Ğ¿Ñ€Ğ¸Ñ‡Ğ¸Ğ½Ğ°:"); if (!reason) return; const permanent = days.toLowerCase() === "permanent"; try { await api(`/users/${item.id}/ban`, { method: "POST", body: JSON.stringify({ ban_type: permanent ? "permanent" : "temporary", public_reason: reason, expires_at: permanent ? null : new Date(Date.now() + Number(days) * 86400000).toISOString() }) }); setNotice("ĞŸĞ¾Ğ»ÑŒĞ·Ğ¾Ğ²Ğ°Ñ‚ĞµĞ»ÑŒ Ğ·Ğ°Ğ±Ğ»Ğ¾ĞºĞ¸Ñ€Ğ¾Ğ²Ğ°Ğ½."); } catch (cause) { setNotice(cause instanceof Error ? cause.message : String(cause)); } }
-  async function unban(item: UserItem) { await api(`/users/${item.id}/unban`, { method: "POST" }); setNotice("Ğ‘Ğ°Ğ½ ÑĞ½ÑÑ‚."); await state.reload(); }
-  return <section className="page"><Header title="ĞŸĞ¾Ğ»ÑŒĞ·Ğ¾Ğ²Ğ°Ñ‚ĞµĞ»Ğ¸" description="ĞŸĞ¾Ğ¸ÑĞº Ğ¿Ğ¾ Telegram ID, username Ğ¸ Anonymous ID." />{notice && <Notice text={notice}/>}<div className="toolbar"><label className="toolbar-search"><Icon name="search"/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ID, username Ğ¸Ğ»Ğ¸ Anonymous 1"/></label><button className="with-icon" onClick={state.reload}><Icon name="refresh"/>ĞĞ±Ğ½Ğ¾Ğ²Ğ¸Ñ‚ÑŒ</button></div>{state.loading ? <Loading/> : <div className="panel">{state.data?.map(item => <div className="item" key={item.id}><div><strong>{item.display_name || `Anonymous ${item.anonymous_id}`}</strong><small>{item.telegram_username ? `@${item.telegram_username}` : "Ğ±ĞµĞ· username"} Â· {item.telegram_id}</small></div><div><Badge value={item.boosty_status}/><button onClick={() => ban(item)}>Ğ‘Ğ°Ğ½</button><button onClick={() => unban(item)}>Ğ¡Ğ½ÑÑ‚ÑŒ</button></div></div>)}</div>}</section>;
-}
-
-export function SuggestionsView() {
-  const [filter, setFilter] = useState("under_review");
-  const state = useData(() => api<SuggestionItem[]>(`/suggestions?status=${filter}`), [filter]);
-  const [notice, setNotice] = useState("");
-  async function decide(item: SuggestionItem, status: string) { let public_reason: string | null = null; let linked_title_id: string | null = null; if (status === "rejected") { public_reason = window.prompt("ĞŸÑƒĞ±Ğ»Ğ¸Ñ‡Ğ½Ğ°Ñ Ğ¿Ñ€Ğ¸Ñ‡Ğ¸Ğ½Ğ° Ğ¾Ñ‚ĞºĞ°Ğ·Ğ°:"); if (!public_reason) return; } if (status === "translated") { linked_title_id = window.prompt("UUID Ğ¾Ğ¿ÑƒĞ±Ğ»Ğ¸ĞºĞ¾Ğ²Ğ°Ğ½Ğ½Ğ¾Ğ³Ğ¾ Ñ‚Ğ°Ğ¹Ñ‚Ğ»Ğ°:"); if (!linked_title_id) return; } try { await api(`/suggestions/${item.id}/decision`, { method: "POST", body: JSON.stringify({ status, public_reason, internal_note: window.prompt("Ğ’Ğ½ÑƒÑ‚Ñ€ĞµĞ½Ğ½ÑÑ Ğ·Ğ°Ğ¼ĞµÑ‚ĞºĞ°:") || null, linked_title_id }) }); await state.reload(); setNotice("Ğ¡Ñ‚Ğ°Ñ‚ÑƒÑ Ğ¾Ğ±Ğ½Ğ¾Ğ²Ğ»Ñ‘Ğ½, Ğ¿Ğ¾Ğ»ÑŒĞ·Ğ¾Ğ²Ğ°Ñ‚ĞµĞ»ÑŒ ÑƒĞ²ĞµĞ´Ğ¾Ğ¼Ğ»Ñ‘Ğ½."); } catch (cause) { setNotice(cause instanceof Error ? cause.message : String(cause)); } }
-  return <section className="page"><Header title="ĞŸÑ€ĞµĞ´Ğ»Ğ¾Ğ¶ĞµĞ½Ğ¸Ñ Ñ‚Ğ°Ğ¹Ñ‚Ğ»Ğ¾Ğ²" description="Raw-Ñ„Ğ°Ğ¹Ğ» Ğ¾Ğ±ÑĞ·Ğ°Ñ‚ĞµĞ»ĞµĞ½ Ğ´Ğ»Ñ ĞºĞ°Ğ¶Ğ´Ğ¾Ğ¹ Ğ¾Ñ‚Ğ¿Ñ€Ğ°Ğ²Ğ»ĞµĞ½Ğ½Ğ¾Ğ¹ Ğ·Ğ°ÑĞ²ĞºĞ¸." />{notice && <Notice text={notice}/>}<div className="toolbar"><select value={filter} onChange={(event) => setFilter(event.target.value)}><option value="under_review">ĞĞ° Ğ¿Ñ€Ğ¾Ğ²ĞµÑ€ĞºĞµ</option><option value="accepted">ĞŸÑ€Ğ¸Ğ½ÑÑ‚Ñ‹Ğµ</option><option value="translated">ĞŸĞµÑ€ĞµĞ²ĞµĞ´Ñ‘Ğ½Ğ½Ñ‹Ğµ</option><option value="rejected">ĞÑ‚ĞºĞ»Ğ¾Ğ½Ñ‘Ğ½Ğ½Ñ‹Ğµ</option><option value="all">Ğ’ÑĞµ</option></select><button className="with-icon" onClick={state.reload}><Icon name="refresh"/>ĞĞ±Ğ½Ğ¾Ğ²Ğ¸Ñ‚ÑŒ</button></div>{state.loading ? <Loading/> : <div className="cards">{state.data?.map(item => <article key={item.id}><div className="item-head"><strong>{item.original_title}</strong><Badge value={item.status}/></div><p>Ğ¯Ğ·Ñ‹Ğº: {item.detected_language || "â€”"} Â· Ğ³Ğ»Ğ°Ğ²Ñ‹: {item.chapter_count || "â€”"} Â· scope 1â€“{item.requested_chapter_end || "â€”"}</p><p><b>Raw:</b> {item.raw_file ? `${item.raw_file.filename} Â· ${bytes(item.raw_file.size_bytes)} Â· ${item.raw_file.validation_status}` : "ĞĞ¢Ğ¡Ğ£Ğ¢Ğ¡Ğ¢Ğ’Ğ£Ğ•Ğ¢"}</p>{item.duplicate_review_required && <Notice text="Ğ’Ğ¾Ğ·Ğ¼Ğ¾Ğ¶Ğ½Ñ‹Ğ¹ Ğ´ÑƒĞ±Ğ»ÑŒ"/>}<small>Anonymous {item.user.anonymous_id} Â· {item.user.telegram_id}</small>{item.status === "under_review" && <div className="actions"><button onClick={() => decide(item, "accepted")}>ĞŸÑ€Ğ¸Ğ½ÑÑ‚ÑŒ</button><button onClick={() => decide(item, "rejected")}>ĞÑ‚ĞºĞ»Ğ¾Ğ½Ğ¸Ñ‚ÑŒ</button><button className="primary" onClick={() => decide(item, "translated")}>ĞŸĞµÑ€ĞµĞ²ĞµĞ´ĞµĞ½Ğ¾</button></div>}</article>)}</div>}</section>;
-}
-
-export function CommunityView() {
-  const comments = useData(() => api<CommentItem[]>("/comments"), []);
-  const ratings = useData(() => api<RatingItem[]>("/ratings"), []);
-  const reports = useData(() => api<ReportItem[]>("/reports"), []);
-  const [tab, setTab] = useState("comments");
-  async function moderate(id: string, deleted: boolean) { await api(`/comments/${id}/moderate`, { method: "POST", body: JSON.stringify({ deleted }) }); await comments.reload(); }
-  async function rate(id: string, status: string) { await api(`/ratings/${id}/workflow`, { method: "POST", body: JSON.stringify({ status, note: window.prompt("Ğ—Ğ°Ğ¼ĞµÑ‚ĞºĞ°:") || null }) }); await ratings.reload(); }
-  async function report(id: string, status: string) { await api(`/reports/${id}`, { method: "POST", body: JSON.stringify({ status, reply: window.prompt("ĞÑ‚Ğ²ĞµÑ‚ Ğ¿Ğ¾Ğ»ÑŒĞ·Ğ¾Ğ²Ğ°Ñ‚ĞµĞ»Ñ:") || null }) }); await reports.reload(); }
-  return <section className="page"><Header title="ĞšĞ¾Ğ¼Ğ¼ĞµĞ½Ñ‚Ğ°Ñ€Ğ¸Ğ¸, Ğ¾Ñ†ĞµĞ½ĞºĞ¸ Ğ¸ Ğ¶Ğ°Ğ»Ğ¾Ğ±Ñ‹" description="ĞŸĞ¾ÑÑ‚Ğ¼Ğ¾Ğ´ĞµÑ€Ğ°Ñ†Ğ¸Ñ Ğ¸ Ñ€Ğ°Ğ±Ğ¾Ñ‡Ğ¸Ğµ ÑÑ‚Ğ°Ñ‚ÑƒÑÑ‹ Ğ¾Ğ±Ñ€Ğ°Ñ‚Ğ½Ğ¾Ğ¹ ÑĞ²ÑĞ·Ğ¸." /><div className="tabs"><button className={tab === "comments" ? "active" : ""} onClick={() => setTab("comments")}>ĞšĞ¾Ğ¼Ğ¼ĞµĞ½Ñ‚Ğ°Ñ€Ğ¸Ğ¸</button><button className={tab === "ratings" ? "active" : ""} onClick={() => setTab("ratings")}>ĞÑ†ĞµĞ½ĞºĞ¸</button><button className={tab === "reports" ? "active" : ""} onClick={() => setTab("reports")}>Ğ–Ğ°Ğ»Ğ¾Ğ±Ñ‹</button></div>{tab === "comments" && <div className="cards">{comments.data?.map(item => <article key={item.id}><strong>Anonymous {item.anonymous_id}</strong><p>{item.public_body}</p><small>{date(item.created_at)} Â· Ğ·Ğ°Ğ¼ĞµĞ½ {item.replacement_count}</small><div className="actions"><button onClick={() => moderate(item.id, !item.is_deleted)}>{item.is_deleted ? "Ğ’Ğ¾ÑÑÑ‚Ğ°Ğ½Ğ¾Ğ²Ğ¸Ñ‚ÑŒ" : "Ğ£Ğ´Ğ°Ğ»Ğ¸Ñ‚ÑŒ"}</button></div></article>)}</div>}{tab === "ratings" && <div className="cards">{ratings.data?.map(item => <article key={item.id}><div className="item-head"><strong>{item.score}/5 Â· {item.release_label}</strong><Badge value={item.status}/></div><p>{item.feedback}</p><div className="actions"><button onClick={() => rate(item.id, "reviewed")}>ĞŸÑ€Ğ¾Ğ²ĞµÑ€ĞµĞ½Ğ¾</button><button onClick={() => rate(item.id, "fixed")}>Ğ˜ÑĞ¿Ñ€Ğ°Ğ²Ğ»ĞµĞ½Ğ¾</button></div></article>)}</div>}{tab === "reports" && <div className="cards">{reports.data?.map(item => <article key={item.id}><div className="item-head"><strong>{item.category}</strong><Badge value={item.status}/></div><p>{item.description}</p><div className="actions"><button onClick={() => report(item.id, "in_progress")}>Ğ’ Ñ€Ğ°Ğ±Ğ¾Ñ‚Ñƒ</button><button onClick={() => report(item.id, "resolved")}>Ğ ĞµÑˆĞµĞ½Ğ°</button></div></article>)}</div>}</section>;
-}
-
-export function BoostyView() { const state = useData(() => api<Record<string, unknown>>("/boosty"), []); return <section className="page"><Header title="Boosty" description="Ğ¡Ñ‚Ğ°Ñ‚ÑƒÑÑ‹ Ğ¿Ğ¾Ğ´Ğ¿Ğ¸ÑĞ¾Ğº Ğ¸ Ğ¿Ğ¾ÑĞ»ĞµĞ´Ğ½ÑÑ ÑĞ¸Ğ½Ñ…Ñ€Ğ¾Ğ½Ğ¸Ğ·Ğ°Ñ†Ğ¸Ñ." action={<button className="with-icon" onClick={state.reload}><Icon name="refresh"/>ĞĞ±Ğ½Ğ¾Ğ²Ğ¸Ñ‚ÑŒ</button>} />{state.loading ? <Loading/> : <pre>{JSON.stringify(state.data, null, 2)}</pre>}</section>; }
 
 export function BroadcastsView() {
-  const state = useData(() => api<BroadcastItem[]>("/broadcasts"), []);
+  const [status, setStatus] = useState("all");
+  const state = useData(() => api<BroadcastItem[]>("/broadcasts?limit=300"), []);
   const [created, setCreated] = useState("");
-  const [notice, setNotice] = useState("");
-  async function create(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const form = new FormData(event.currentTarget); try { const item = await api<{ id: string }>("/broadcasts", { method: "POST", body: JSON.stringify({ audience_type: form.get("audience_type"), title_id: form.get("title_id") || null, text: form.get("text"), button_text: form.get("button_text") || null, button_url: form.get("button_url") || null, scheduled_at: form.get("scheduled_at") ? new Date(String(form.get("scheduled_at"))).toISOString() : null, send_now: form.get("send_now") === "on", selected_user_ids: [] }) }); setCreated(item.id); setNotice(`Ğ Ğ°ÑÑÑ‹Ğ»ĞºĞ° ÑĞ¾Ğ·Ğ´Ğ°Ğ½Ğ°: ${item.id}`); await state.reload(); } catch (cause) { setNotice(cause instanceof Error ? cause.message : String(cause)); } }
-  async function photo(file: File) { if (!created) { setNotice("Ğ¡Ğ½Ğ°Ñ‡Ğ°Ğ»Ğ° ÑĞ¾Ğ·Ğ´Ğ°Ğ¹Ñ‚Ğµ Ñ€Ğ°ÑÑÑ‹Ğ»ĞºÑƒ."); return; } const body = new FormData(); body.set("file", file); await api(`/broadcasts/${created}/photo`, { method: "POST", body }); setNotice("Ğ¤Ğ¾Ñ‚Ğ¾ Ğ¿Ñ€Ğ¸ĞºÑ€ĞµĞ¿Ğ»ĞµĞ½Ğ¾."); }
-  return <section className="page"><Header title="Ğ ÑƒÑ‡Ğ½Ñ‹Ğµ Ñ€Ğ°ÑÑÑ‹Ğ»ĞºĞ¸" description="Ğ¢ĞµĞºÑÑ‚, Ñ„Ğ¾Ñ‚Ğ¾, ĞºĞ½Ğ¾Ğ¿ĞºĞ°, Ğ°ÑƒĞ´Ğ¸Ñ‚Ğ¾Ñ€Ğ¸Ñ, Ñ€Ğ°ÑĞ¿Ğ¸ÑĞ°Ğ½Ğ¸Ğµ Ğ¸ Ğ¿Ğ¾Ğ²Ñ‚Ğ¾Ñ€Ğ½Ñ‹Ğµ Ğ¿Ğ¾Ğ¿Ñ‹Ñ‚ĞºĞ¸." />{notice && <Notice text={notice}/>}<div className="columns"><form className="panel form" onSubmit={create}><Field label="ĞÑƒĞ´Ğ¸Ñ‚Ğ¾Ñ€Ğ¸Ñ"><select name="audience_type"><option value="all">Ğ’ÑĞµ</option><option value="active_vip">ĞĞºÑ‚Ğ¸Ğ²Ğ½Ñ‹Ğµ VIP</option><option value="vip_grace">VIP + Grace</option><option value="standard">Standard</option><option value="title_followers">ĞŸĞ¾Ğ´Ğ¿Ğ¸ÑÑ‡Ğ¸ĞºĞ¸ Ñ‚Ğ°Ğ¹Ñ‚Ğ»Ğ°</option></select></Field><Field label="UUID Ñ‚Ğ°Ğ¹Ñ‚Ğ»Ğ°"><input name="title_id"/></Field><Field label="Ğ¢ĞµĞºÑÑ‚"><textarea name="text" rows={7} required/></Field><div className="row"><Field label="Ğ¢ĞµĞºÑÑ‚ ĞºĞ½Ğ¾Ğ¿ĞºĞ¸"><input name="button_text"/></Field><Field label="URL"><input name="button_url" type="url"/></Field></div><Field label="Ğ”Ğ°Ñ‚Ğ° Ğ¾Ñ‚Ğ¿Ñ€Ğ°Ğ²ĞºĞ¸"><input name="scheduled_at" type="datetime-local"/></Field><label className="checkbox"><input name="send_now" type="checkbox"/> ĞÑ‚Ğ¿Ñ€Ğ°Ğ²Ğ¸Ñ‚ÑŒ ÑÑ€Ğ°Ğ·Ñƒ</label><button className="primary">Ğ¡Ğ¾Ğ·Ğ´Ğ°Ñ‚ÑŒ</button><label className="upload">Ğ¤Ğ¾Ñ‚Ğ¾<input hidden type="file" accept="image/*" onChange={(event: React.ChangeEvent<HTMLInputElement>) => event.target.files?.[0] && photo(event.target.files[0])}/></label></form><div className="panel"><h3>ĞŸĞ¾ÑĞ»ĞµĞ´Ğ½Ğ¸Ğµ Ñ€Ğ°ÑÑÑ‹Ğ»ĞºĞ¸</h3><div className="cards compact">{state.data?.map(item => <article key={item.id}><div className="item-head"><strong>{item.text.slice(0, 100)}</strong><Badge value={item.status}/></div><small>{item.sent_count}/{item.total_count}, Ğ¾ÑˆĞ¸Ğ±Ğ¾Ğº {item.failed_count} Â· {date(item.created_at)}</small></article>)}</div></div></div></section>;
-}
+  const [selected, setSelected] = useState<string[]>([]);
+  const [retryModal, setRetryModal] = useState<RetryModal>(null);
+  const [busy, setBusy] = useState(false);
+  const { push } = useToast();
+  const items = useMemo(
+    () => (state.data || []).filter((item) => status === "all" || item.status === status),
+    [state.data, status],
+  );
 
-export function GenericView({ section }: { section: "channel" | "files" | "audit" | "settings" }) {
-  const state = useData(() => api<unknown>(`/${section}`), [section]);
-  const names: Record<typeof section, [string, string]> = {
-    channel: ["Telegram-ĞºĞ°Ğ½Ğ°Ğ»", "ĞŸÑƒĞ±Ğ»Ğ¸ĞºĞ°Ñ†Ğ¸Ğ¸ Ğ¸ ÑÑ‚Ğ°Ñ‚Ğ¸ÑÑ‚Ğ¸ĞºĞ° ĞºĞ°Ğ½Ğ°Ğ»Ğ°."],
-    files: ["Ğ¤Ğ°Ğ¹Ğ»Ñ‹ Ğ¸ ĞºÑÑˆ", "Ğ’ĞµÑ€ÑĞ¸Ğ¸ PDF/EPUB, checksum Ğ¸ Telegram file_id."],
-    audit: ["Ğ–ÑƒÑ€Ğ½Ğ°Ğ» Ğ´ĞµĞ¹ÑÑ‚Ğ²Ğ¸Ğ¹", "ĞĞµĞ¸Ğ·Ğ¼ĞµĞ½ÑĞµĞ¼Ğ°Ñ Ğ¸ÑÑ‚Ğ¾Ñ€Ğ¸Ñ Ğ¾Ğ¿ĞµÑ€Ğ°Ñ†Ğ¸Ğ¹."],
-    settings: ["Ğ¡Ğ¸ÑÑ‚ĞµĞ¼Ğ½Ñ‹Ğµ Ğ½Ğ°ÑÑ‚Ñ€Ğ¾Ğ¹ĞºĞ¸", "Runtime overrides Ğ¸ Ğ´Ğ¸Ğ°Ğ³Ğ½Ğ¾ÑÑ‚Ğ¸Ñ‡ĞµÑĞºĞ¸Ğµ Ğ·Ğ½Ğ°Ñ‡ĞµĞ½Ğ¸Ñ."],
-  };
-  return <section className="page"><Header title={names[section][0]} description={names[section][1]} action={<button className="with-icon" onClick={state.reload}><Icon name="refresh"/>ĞĞ±Ğ½Ğ¾Ğ²Ğ¸Ñ‚ÑŒ</button>} />{state.error && <ErrorBox text={state.error}/>} {state.loading ? <Loading/> : <pre>{JSON.stringify(state.data, null, 2)}</pre>}</section>;
-}
+  async function create(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setBusy(true);
+    try {
+      const item = await api<{ id: string }>("/broadcasts", {
+        method: "POST",
+        body: JSON.stringify({
+          audience_type: form.get("audience_type"),
+          title_id: form.get("title_id") || null,
+          text: form.get("text"),
+          button_text: form.get("button_text") || null,
+          button_url: form.get("button_url") || null,
+          scheduled_at: form.get("scheduled_at") ? new Date(String(form.get("scheduled_at"))).toISOString() : null,
+          send_now: form.get("send_now") === "on",
+          selected_user_ids: [],
+        }),
+      });
+      setCreated(item.id);
+      event.currentTarget.reset();
+      await state.reload();
+      push(`Ğ Ğ°ÑÑÑ‹Ğ»ĞºĞ° ÑĞ¾Ğ·Ğ´Ğ°Ğ½Ğ°: ${item.id}`, "success");
+    } catch (cause) {
+      push(cause instanceof Error ? cause.message : String(cause), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function photo(file: File) {
+    if (!created) {
+      push("Ğ¡Ğ½Ğ°Ñ‡Ğ°Ğ»Ğ° ÑĞ¾Ğ·Ğ´Ğ°Ğ¹Ñ‚Ğµ Ñ€Ğ°ÑÑÑ‹BëF¸ˆ°€‰•ÉÉ½Èˆ¤ì(€€€€€É•ÑÕÉ¸ì(€€€ô(€€€½¹ÍĞ‰½‘ä€ô¹•Ü½Éµ…Ñ„ ¤ì(€€€‰½‘ä¹Í•Ğ ‰™¥±”ˆ°™¥±”¤ì(€€€ÑÉäì(€€€€€…İ…¥Ğ…Á¤¡€½‰É½…‘…ÍÑÌ¼‘íÉ•…Ñ•‘ô½Á¡½Ñ½€°ìµ•Ñ¡½è€‰A=MPˆ°‰½‘äô¤ì(€€€€€ÁÕÍ  ‹B“BûFBøƒBÿFBãBëFB×BÿBïB×B÷Bø¸ˆ°€‰ÍÕ•ÍÌˆ¤ì(€€€ô…Ñ €¡…ÕÍ”¤ì(€€€€€ÁÕÍ ¡…ÕÍ”¥¹ÍÑ…¹•½˜ÉÉ½È€ü…ÕÍ”¹µ•ÍÍ…”€èMÑÉ¥¹œ¡…ÕÍ”¤°€‰•ÉÉ½Èˆ¤ì(€€€ô(€ô((€…Íå¹Œ™Õ¹Ñ¥½¸ÁÉ•Ù¥•İI•ÑÉä ¤ì(€€€¥˜€ …Í•±•Ñ•¹±•¹Ñ ¤É•ÑÕÉ¸ì(€€€½¹ÍĞ­•ä€ô¥‘•µÁ½Ñ•¹å-•ä ¤ì(€€€Í•Ñ	ÕÍä¡ÑÉÕ”¤ì(€€€ÑÉäì(€€€€€½¹ÍĞÁÉ•Ù¥•Ü€ô…İ…¥Ğ…Á¤ñI•ÑÉåAÉ•Ù¥•Üø ˆ½‰É½…‘…ÍÑÌ½É•ÑÉäµ™…¥±•ˆ°ì(€€€€€€€µ•Ñ¡½è€‰A=MPˆ°(€€€€€€€‰½‘äè)M=8¹ÍÑÉ¥¹¥™ä¡ì‰É½…‘…ÍÑ}¥‘ÌèÍ•±•Ñ•°‘Éå}ÉÕ¸èÑÉÕ”°¥‘•µÁ½Ñ•¹å}­•äè­•äô¤°(€€€€€ô¤ì(€€€€€Í•ÑI•ÑÉå5½‘…°¡ì­•ä°ÁÉ•Ù¥•Üô¤ì(€€€ô…Ñ €¡…ÕÍ”¤ì(€€€€€ÁÕÍ ¡…ÕÍ”¥¹ÍÑ…¹•½˜ÉÉ½È€ü…ÕÍ”¹µ•ÍÍ…”€èMÑÉ¥¹œ¡…ÕÍ”¤°€‰•ÉÉ½Èˆ¤ì(€€€ô™¥¹…±±äì(€€€€€Í•Ñ	ÕÍä¡™…±Í”¤ì(€€€ô(€ô((€…Íå¹Œ™Õ¹Ñ¥½¸•á•ÕÑ•I•ÑÉä ¤ì(€€€¥˜€ …É•ÑÉå5½‘…°¤É•ÑÕÉ¸ì(€€€½¹ÍĞ…•ÁÑ•€ô…İ…¥Ğ½¹™¥ÉµÑ¥½¸ (€€€€€ƒBKB×FB÷FFF0ƒBÈƒBûFB×FB×BÓF0€‘íÉ•ÑÉå5½‘…°¹ÁÉ•Ù¥•Ü¹•±¥¥‰±•}‰É½…‘…ÍÑÍôƒFBÃFFF/BïBûBèƒBà€‘íÉ•ÑÉå5½‘…°¹ÁÉ•Ù¥•Ü¹É•ÑÉ¥…‰±•}É•¥Á¥•¹ÑÍôƒBÿBûBïFFBÃFB×BïB×Bäı€°(€€€€¤ì(€€€¥˜€ ……•ÁÑ•¤É•ÑÕÉ¸ì(€€€Í•Ñ	ÕÍä¡ÑÉÕ”¤ì(€€€ÑÉäì(€€€€€½¹ÍĞÉ•ÍÕ±Ğ€ô…İ…¥Ğ…Á¤ñI•ÑÉåAÉ•Ù¥•Ü€˜ìÉ•Á±…å•è‰½½±•…¸ôø ˆ½‰É½…‘…ÍÑÌ½É•ÑÉäµ™…¥±•ˆ°ì(€€€€€€€µ•Ñ¡½è€‰A=MPˆ°(€€€€€€€‰½‘äè)M=8¹ÍÑÉ¥¹¥™ä¡ì(€€€€€€€€€‰É½…‘…ÍÑ}¥‘ÌèÍ•±•Ñ•°(€€€€€€€€€‘Éå}ÉÕ¸è™…±Í”°(€€€€€€€€€¥‘•µÁ½Ñ•¹å}­•äèÉ•ÑÉå5½‘…°¹­•ä°(€€€€€€€ô¤°(€€€€€ô¤ì(€€€€€Í•ÑI•ÑÉå5½‘…°¡¹Õ±°¤ì(€€€€€Í•ÑM•±•Ñ•¡mt¤ì(€€€€€…İ…¥ĞÍÑ…Ñ”¹É•±½… ¤ì(€€€€€ÁÕÍ  (€€€€€€€É•ÍÕ±Ğ¹É•Á±…å•(€€€€€€€€€€ü€‹B{BÿB×FBÃFBãF<ƒFBÛBÔƒBËF/BÿBûBïB÷F?BïBÃFF0ìƒBËBûBßBËFBÃF'FGBôƒFBûFFBÃB÷FGB÷B÷F/BäƒFB×BßFBïF3FBÃF¸ˆ(€€€€€€€€€€èƒBHƒBûFB×FB×BÓF0ƒBËBûBßBËFBÃF'B×B÷BøƒFBÃFFF/BïBûBèè€‘íÉ•ÍÕ±Ğ¹•±¥¥‰±•}‰É½…‘…ÍÑÍô¹€°(€€€€€€€€‰ÍÕ•ÍÌˆ°(€€€€€€¤ì(€€€ô…Ñ €¡…ÕÍ”¤ì(€€€€€ÁÕÍ ¡…ÕÍ”¥¹ÍÑ…¹•½˜ÉÉ½È€ü…ÕÍ”¹µ•ÍÍ…”€èMÑÉ¥¹œ¡…ÕÍ”¤°€‰•ÉÉ½Èˆ¤ì(€€€ô™¥¹…±±äì(€€€€€Í•Ñ	ÕÍä¡™…±Í”¤ì(€€€ô(€ô((€É•ÑÕÉ¸€ñÍ•Ñ¥½¸±…ÍÍ9…µ”ô‰Á…”‰É½…‘…ÍÑÌµİ½É­‰•¹ ˆø(€€€€ñ!•…‘•È(€€€€€Ñ¥Ñ±”ô‹BƒFFB÷F/BÔƒFBÃFFF/BïBëBàˆ(€€€€€‘•ÍÉ¥ÁÑ¥½¸ô‹B‹B×BëFF°ƒFBûFBø°ƒBëB÷BûBÿBëBÀ°ƒFBÃFBÿBãFBÃB÷BãBÔƒBàƒBÇB×BßBûBÿBÃFB÷BûBÔƒBËBûFFFBÃB÷BûBËBïB×B÷BãBÔ™…¥±•·BÿBûBïFFBÃFB×BïB×Bä¸ˆ(€€€€€…Ñ¥½¸õìñ‰ÕÑÑ½¸±…ÍÍ9…µ”ô‰İ¥Ñ µ¥½¸ˆ½¹±¥¬õíÍÑ…Ñ”¹É•±½…‘ôøñ%½¸¹…µ”ô‰É•™É•Í ˆ¼ûB{BÇB÷BûBËBãFF0ğ½‰ÕÑÑ½¸ùô(€€€€¼ø(€€€íÍÑ…Ñ”¹•ÉÉ½È€˜˜€ñÉÉ½É	½àÑ•áĞõíÍÑ…Ñ”¹•ÉÉ½Éô¼ùô€(€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰½±Õµ¹Ì‰É½…‘…ÍÑÌµ±…å½ÕĞˆø(€€€€€€ñ™½É´±…ÍÍ9…µ”ô‰Á…¹•°™½É´‰É½…‘…ÍĞµÉ•…Ñ”ˆ½¹MÕ‰µ¥ĞõíÉ•…Ñ•ô…É¥„µ±…‰•°ô‹BwBûBËBÃF<ƒFBÃFFF-½­#à¢Æƒ3í	İí-ò½½­Âöƒ3à¢Äf–VÆBÆ&VÃÒ-	M-íò#ãÇ6VÆV7BæÖSÒ&VF–Væ6U÷G—R#ãÆ÷F–öâfÇVSÒ&ÆÂ#í	-SÂö÷F–öããÆ÷F–öâfÇVSÒ&7F—fU÷f—#í	­--İ½Rd•Âö÷F–öããÆ÷F–öâfÇVSÒ'f—öw&6R#åd•²w&6SÂö÷F–öããÆ÷F–öâfÇVSÒ'7FæF&B#å7FæF&CÂö÷F–öããÆ÷F–öâfÇVSÒ'F—FÆUöföÆÆ÷vW'2#í	ıíMı}­‚--½Âö÷F–öããÂ÷6VÆV7CãÂôf–VÆCà¢Äf–VÆBÆ&VÃÒ%UT”B--½#ãÆ–çWBæÖSÒ'F—FÆUö–B"Æ6V†öÆFW#Ò-
+-í½Í­âM½òıíMı}­í"--½"óãÂôf–VÆCà¢Äf–VÆBÆ&VÃÒ-
+-]­"#ãÇFW‡F&VæÖSÒ'FW‡B"&÷w3×³wÒÖ„ÆVæwFƒ×³#GÒ&WV—&VBóãÂôf–VÆCà¢ÆF—b6Æ74æÖSÒ'&÷r#ãÄf–VÆBÆ&VÃÒ-
+-]­"­İíı­‚#ãÆ–çWBæÖSÒ&'WGFöå÷FW‡B"Ö„ÆVæwFƒ×³cGÒóãÂôf–VÆCãÄf–VÆBÆ&VÃÒ%U$Â#ãÆ–çWBæÖSÒ&'WGFöå÷W&Â"G—SÒ'W&Â"óãÂôf–VÆCãÂöF—cà¢Äf–VÆBÆ&VÃÒ-	M-í-ı-­‚#ãÆ–çWBæÖSÒ'66†VGVÆVEöB"G—SÒ&FFWF–ÖRÖÆö6Â"óãÂôf–VÆCà¢ÆÆ&VÂ6Æ74æÖSÒ&6†V6¶&÷‚#ãÆ–çWBæÖSÒ'6VæEöæ÷r"G—SÒ&6†V6¶&÷‚"óâ	í-ı--Â}3ÂöÆ&VÃà¢Æ'WGFöâ6Æ74æÖSÒ'&–Ö'’"F—6&ÆVC×¶'W7—Óç¶'W7’ò-
+í]İı]Î(
+b"¢-
+í}M-Â'ÓÂö'WGFöãà¢ÆÆ&VÂ6Æ74æÖS×¶WÆöBG¶7&VFVBò""¢"F—6&ÆVF'ÖÓí
+Mí-â¢í}Mİİí’½½­SÆ–çWBF—6&ÆVC×²7&VFVGÒ†–FFVâG—SÒ&f–ÆR"66WCÒ&–ÖvRò¢"öä6†ævS×²†WfVçC¢&V7Bä6†ævTWfVçCÄ…DÔÄ–çWDVÆVÖVçCâ’ÓâWfVçBçF&vWBæf–ÆW3òå³Òbb†÷Fò†WfVçBçF&vWBæf–ÆW5³Ò—ÒóãÂöÆ&VÃà¢¶7&VFVBbbÇ6ÖÆÂ6Æ74æÖSÒ&'&öF67BÖ7&VFVB#í
+-]­=ò´.ô.´,ˆÛÙOØÜ™X]YOØÛÙOÜÛX[ŸBˆÙ›Ü›O‚ˆ]ˆÛ\ÜÓ˜[YOHœ[™[œ›ØYØ\İ[\İ\[™[‚ˆ]ˆÛ\ÜÓ˜[YOH˜œ›ØYØ\İ[\İZXY‚ˆ]Ï´'ô/´`t.ô-t-4/t.4-H4`4,4`t`tbĞ»ĞºĞ¸</h3><p>Failed-Ğ·Ğ°Ğ¿Ğ¸ÑĞ¸ Ğ¼Ğ¾Ğ¶Ğ½Ğ¾ Ğ²Ñ‹Ğ±Ñ€Ğ°Ñ‚ÑŒ Ğ¸ Ğ²ĞµÑ€Ğ½ÑƒÑ‚ÑŒ Ğ² Ğ¾Ñ‡ĞµÑ€ĞµĞ´ÑŒ Ñ‚Ğ¾Ğ»ÑŒĞºĞ¾ Ğ¿Ğ¾ÑĞ»Ğµ dry-run.</p></div>
+          <div><select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Ğ¤Ğ¸Ğ»ÑŒÑ‚Ñ† Ğ¿Ğ¾ ÑÑ‚Ğ°Ñ‚ÑƒÑÑƒ"><option value="all">Ğ’ÑĞµ ÑÑ‚Ğ°Ñ‚ÑƒÑÑ‹</option><option value="draft">Ğ§ĞµÑ€Ğ½Ğ¾Ğ²Ğ¸Ğº</option><option value="scheduled">Ğ—Ğ°Ğ¿Ğ»Ğ°Ğ½Ğ¸Ñ€Ğ¾Ğ²Ğ°Ğ½Ğ¾</option><option value="processing">Ğ’Ñ‹Ğ¿Ğ¾Ğ»Ğ½ÑĞµÑ‚ÑÑ</option><option value="completed">Ğ—Ğ°Ğ²ĞµÑ€ÑˆĞµĞ½Ğ¾</option><option value="failed">ĞÑˆĞ¸Ğ±ĞºĞ°</option><option value="cancelled">ĞÑ‚Ğ¼ĞµĞ½ĞµĞ½Ğ¾</option></select><button disabled={!selected.length || busy} onClick={previewRetry}>Dry-run retry ({selected.length})</button></div>
+        </div>
+        {state.loading ? <Loading label="Ğ—Ğ°Ğ³Ñ€ÑƒĞ¶Ğ°ĞµĞ¼ Ñ€Ğ°ÑÑÑ‹Ğ»ĞºĞ¸â€¦"/> : items.length ? <div className="cards compact broadcast-cards">{items.map((item) => <article key={item.id} className={selected.includes(item.id) ? "selected" : ""}>
+          <label className="broadcast-select"><input type="checkbox" disabled={item.status !== "failed"} checked={selected.includes(item.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id))}/><span className="sr-only">Ğ’Ñ‹Ğ±Ñ€Ğ°Ñ‚ÑŒ failed-Ñ€Ğ°ÑÑÑ‹BïBëF¸ğ½ÍÁ…¸øğ½±…‰•°ø(€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰‰É½…‘…ÍĞµ…Éµµ…¥¸ˆøñ‘¥Ø±…ÍÍ9…µ”ô‰¥Ñ•´µ¡•…ˆøñÍÑÉ½¹œùí¥Ñ•´¹Ñ•áĞ¹Í±¥” À°€ÄĞÀ¥ôğ½ÍÑÉ½¹œøñ	…‘”Ù…±Õ”õí¥Ñ•´¹ÍÑ…ÑÕÍô¼øğ½‘¥ØøñÍµ…±°ùí¥Ñ•´¹Í•¹Ñ}½Õ¹Ñô½í¥Ñ•´¹Ñ½Ñ…±}½Õ¹Ñô°ƒBûF#BãBÇBûBèí¥Ñ•´¹™…¥±•‘}½Õ¹Ñô°ƒBÿFBûBÿFF'B×B÷Bøí¥Ñ•´¹Í­¥ÁÁ•‘}½Õ¹Ñôƒ
+Üí‘…Ñ”¡¥Ñ•´¹É•…Ñ•‘}…Ğ¥ôğ½Íµ…±°øñ½‘”ùí¥Ñ•´¹¥‘ôğ½½‘”øğ½‘¥Øø(€€€€€€€€ğ½…ÉÑ¥±”ø¥ôğ½‘¥Øø€è€ñ‘¥Ø±…ÍÍ9…µ”ô‰•µÁÑäµÍÑ…Ñ”ˆøñ%½¸¹…µ”ô‰Í•¹ˆÍ¥é”õìÌÁô¼øñÍÑÉ½¹œûBƒBÃFFF-½í¢İRİM]ÓÂ÷7G&öæsãÇ7ãí	}Í]İ-RM½Í-½‚í}M-Rİí-=â½½­2ãÂ÷7ããÂöF—cçĞ¢ÂöF—cà¢ÂöF—cà¢·&WG'”ÖöFÂbbÆF—b6Æ74æÖSÒ&FÖ–âÖÖöFÂÖ&6¶G&÷"&öÆSÒ'&W6VçFF–öâ"öäÖ÷W6TF÷vã×²†WfVçB’ÓâWfVçBçF&vWBÓÓÒWfVçBæ7W'&VçEF&vWBbb6WE&WG'”ÖöFÂ†çVÆÂ—Óà¢Ç6V7F–öâ6Æ74æÖSÒ&FÖ–âÖÖöFÂ"&öÆSÒ&F–Æör"&–ÖÖöFÃÒ'G'VR"&–ÖÆ&VÆÆVF'“Ò'&WG'’×F—FÆR#à¢Æ†VFW#ãÆF—cãÆƒ"–CÒ'&WG'’×F—FÆR#äG'’×'VâÍí-í=â&WG'“Âöƒ#ãÇí	­İMM-²=M="ıí--íİâ}-İ²ıíBGf—6÷'’Æö6²ı]]B}ıÍâãÂ÷ãÂöF—cãÆ'WGFöâ&–ÖÆ&VÃÒ-	}­½-Â"öä6Æ–6³×²‚’Óâ6WE&WG'”ÖöFÂ†çVÆÂ—Óì9sÂö'WGFöããÂö†VFW#à¢ÆFÂ6Æ74æÖSÒ'&WG'’×7VÖÖ'’#ãÆF—cãÆGCí	}ıí]İãÂöGCãÆFCç·&WG'”ÖöFÂç&Wf–Wrç&WVW7FVGÓÂöFCãÂöF—cãÆF—cãÆGCí	İM]İâf–ÆVCÂöGCãÆFCç·&WG'”ÖöFÂç&Wf–Wræf÷VæGÓÂöFCãÂöF—cãÆF—cãÆGCí	Mí-=ıİâ´.ô/´.ÙÜ™]S[Ù[œ™]šY]Ë™[YÚX›WØœ›ØYØ\İßOÙÙ]]´'ô/´.ô`ôaô,4`´-t.ô-t.OÙÜ™]S[Ù[œ™]šY]Ëœ™]šXX›WÜ™XÚ\Y[ßOÙÙ]Ù‚ˆ]ˆÛ\ÜÓ˜[YOHœ™]KZ][\ÈÜ™]S[Ù[œ™]šY]Ëš][\Ë›X\
+
+][JHOˆ]ˆÙ^O^Ú][KšYOÛÙOÚ][KšYOØÛÙOÜ[Ú][Kœ™XÚ\Y[ßH4/ô/´.ô`ôaô,4`´-t.ô-t.OÜÜ[Ù]Š_OÙ]‚ˆ›Ûİ\]ÛˆÛÛXÚÏ^Ê
+HOˆÙ]™]S[Ù[
+[
+_O´'´`´/4-t/t,Ø]Û]ÛˆÛ\ÜÓ˜[YOHœš[X\Hˆ\ØX›Y^È\™]S[Ù[œ™]šY]Ë™[YÚX›WØœ›ØYØ\İÈ\Ş_HÛÛXÚÏ^Ù^Xİ]T™]_OØ\ŞHÈ´$´bô/ô/´.ô/tcô-t`´`tcø )ˆˆˆ´'ô/´-4`´,´-t`4-4.4`´c™]HŸOØ]ÛÙ›Ûİ\‚ˆÜÙXİ[Û‚ˆÙ]ŸBˆÜÙXİ[ÛÂŸB
