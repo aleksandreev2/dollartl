@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
+from dollartl.admin.people_router import router as people_admin_router
 from dollartl.admin.raw_router import router as raw_admin_router
 from dollartl.admin.resilience_router import router as resilience_admin_router
 from dollartl.admin.router import router as admin_router
@@ -146,7 +147,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await engine.dispose()
 
 
-app = FastAPI(title=settings.app_name, version="0.8.0", lifespan=lifespan)
+app = FastAPI(title=settings.app_name, version="0.10.0", lifespan=lifespan)
 allowed_origins = [settings.admin_web_origin.rstrip("/")]
 if settings.app_env == "development":
     allowed_origins.extend(["http://localhost:8080", "http://localhost:5173"])
@@ -162,11 +163,12 @@ app.include_router(admin_router)
 app.include_router(raw_admin_router)
 app.include_router(resilience_admin_router)
 app.include_router(workbench_admin_router)
+app.include_router(people_admin_router)
 
 
 @app.get("/health/live", include_in_schema=False)
 async def live() -> dict[str, str]:
-    return {"status": "ok", "version": "0.8.0"}
+    return {"status": "ok", "version": "0.10.0"}
 
 
 @app.get("/health/ready", include_in_schema=False)
