@@ -7,6 +7,7 @@ import zipfile
 from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 from xml.etree import ElementTree
 
 from dollartl.files.chapter_detection import DetectionResult, detect_chapter_range
@@ -96,7 +97,7 @@ def language_name(value: str | None) -> str | None:
 
 def detect_text_language(text: str) -> str | None:
     sample = text[:200_000]
-    counts = Counter()
+    counts: Counter[str] = Counter()
     for char in sample:
         code = ord(char)
         if 0x0400 <= code <= 0x052F:
@@ -177,7 +178,7 @@ def _pdf_metadata(path: Path) -> tuple[dict[str, str | None], str]:
     from pypdf import PdfReader
 
     reader = PdfReader(str(path))
-    info = reader.metadata or {}
+    info: Any = reader.metadata or {}
     metadata = {
         "title": _clean_text(str(info.get("/Title") or "")),
         "language": _clean_text(str(info.get("/Language") or "")),
