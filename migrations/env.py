@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from dollartl.config import get_settings
 from dollartl.db.base import Base
-from dollartl.db import admin_models, boosty_models, community_models, models, resilience_models, suggestion_models  # noqa: F401
+from dollartl.db import admin_models, boosty_models, catalog_revision_models, community_models, models, resilience_models, suggestion_models  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

@@ -3,7 +3,8 @@ import ReactDOM from "react-dom/client";
 import { api, initializeTelegram } from "./api";
 import type { SessionInfo } from "./types";
 import { Icon, Loading, sections, useData, type Section } from "./admin-ui";
-import { BroadcastsView, CatalogView } from "./admin-views";
+import { BroadcastsView } from "./admin-views";
+import { CatalogStudioView } from "./catalog-studio";
 import { UsersWorkbenchView } from "./admin-people";
 import { CommunityWorkbenchView } from "./admin-moderation";
 import { SuggestionsWorkbenchView } from "./admin-suggestions";
@@ -21,6 +22,7 @@ import "./admin-operations.css";
 import "./admin-workbench.css";
 import "./admin-people.css";
 import "./admin-moderation.css";
+import "./catalog-studio.css";
 
 function App() {
   const [section, setSection] = useState<Section>("overview");
@@ -69,7 +71,7 @@ function App() {
   };
   const views: Record<Section, React.ReactNode> = {
     overview: <OperationsOverview onNavigate={navigate}/>,
-    catalog: <CatalogView/>,
+    catalog: <CatalogStudioView/>,
     users: <UsersWorkbenchView/>,
     suggestions: <SuggestionsWorkbenchView/>,
     community: <CommunityWorkbenchView/>,

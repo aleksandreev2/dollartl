@@ -4,14 +4,8 @@ from uuid import UUID
 
 from sqlalchemy import and_, select, update
 
-from dollartl.db.models import (
-    AuditLog,
-    DownloadEvent,
-    FileVersion,
-    Release,
-    ReleaseFile,
-    User,
-)
+from dollartl.db.catalog_revision_models import FileVersionInspection
+from dollartl.db.models import AuditLog, DownloadEvent, FileVersion, Release, ReleaseFile, User
 from dollartl.services.catalog_types import CatalogSessionMixin, ReleaseFileBundle
 
 
@@ -67,6 +61,10 @@ class CatalogFilesMixin(CatalogSessionMixin):
         )
         release_file.current_version = next_version
         self.session.add(version)
+        await self.session.flush()
+        self.session.add(
+            FileVersionInspection(file_version_id=version.id, inspection=detection)
+        )
 
         report = dict(release.detection_report or {})
         report[file_kind] = detection
@@ -96,7 +94,6 @@ class CatalogFilesMixin(CatalogSessionMixin):
             release.validation_status = "pending"
             release.validation_message = f"Missing files: {', '.join(missing).upper()}"
             return
-
         ranges: dict[str, tuple[int | None, int | None]] = {}
         for kind in ("pdf", "epub"):
             item = report.get(kind) or {}
@@ -197,6 +194,6 @@ class CatalogFilesMixin(CatalogSessionMixin):
         from dollartl.config import get_settings
         from dollartl.services.boosty import BoostyService
 
-        return await BoostyService(
-            self.session, get_settings()
-        ).can_download(user, admin_telegram_id)
+        return await BoostyService(self.session, get_settings()).can_download(
+            user, admin_telegram_id
+        )
