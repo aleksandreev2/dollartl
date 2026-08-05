@@ -44,9 +44,16 @@ class FakeBot:
     def __init__(self, webhook_url: str) -> None:
         self.webhook_url = webhook_url
         self.set_webhook_kwargs: dict[str, Any] = {}
+        self.commands: list[Any] = []
+        self.command_scope: Any = None
 
     async def get_me(self) -> SimpleNamespace:
         return SimpleNamespace(username="dollartl_test_bot", id=42)
+
+    async def set_my_commands(self, commands: list[Any], scope: Any) -> bool:
+        self.commands = commands
+        self.command_scope = scope
+        return True
 
     async def set_webhook(self, **kwargs: Any) -> bool:
         self.set_webhook_kwargs = kwargs
@@ -94,6 +101,18 @@ async def test_configure_telegram_webhook() -> None:
 
     assert result.username == "dollartl_test_bot"
     assert result.webhook_url == "https://example.com/telegram/webhook"
+    assert [command.command for command in bot.commands] == [
+        "start",
+        "latest",
+        "browse",
+        "search",
+        "library",
+        "menu",
+        "settings",
+        "help",
+        "cancel",
+        "admin",
+    ]
     assert bot.set_webhook_kwargs["secret_token"] == "safe_secret-123"
     assert bot.set_webhook_kwargs["drop_pending_updates"] is False
     assert bot.set_webhook_kwargs["allowed_updates"] == ["message", "callback_query"]

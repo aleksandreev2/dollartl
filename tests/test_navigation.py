@@ -5,6 +5,7 @@ from dollartl.bot.keyboards import (
     NAV_LATEST,
     NAV_LIBRARY,
     NAV_MENU,
+    NAV_SEARCH,
     home_keyboard,
     persistent_navigation_keyboard,
 )
@@ -16,11 +17,12 @@ def test_persistent_navigation_is_compact_and_complete() -> None:
 
     assert keyboard.is_persistent is True
     assert keyboard.resize_keyboard is True
-    assert len(keyboard.keyboard) == 3
+    assert len(keyboard.keyboard) == 4
     assert labels == [
         NAV_HOME,
         NAV_LATEST,
         NAV_BROWSE,
+        NAV_SEARCH,
         NAV_LIBRARY,
         NAV_MENU,
         NAV_CANCEL,
