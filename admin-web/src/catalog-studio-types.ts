@@ -96,6 +96,51 @@ export type FailedPublication = {
   updated_at: string;
 };
 
+export type PipelineDetection = {
+  chapter_start: number | null;
+  chapter_end: number | null;
+  source: string;
+  confidence: string;
+  observed_chapters: number[];
+  note?: string | null;
+};
+
+export type PipelineAnalysis = {
+  suggested: {
+    english_title: string;
+    original_title: string;
+    original_language: string;
+    translation_language: string;
+    publication_status: string;
+    description: string;
+    source_url: string;
+    boosty_url: string;
+    aliases: string[];
+    chapter_start: number | null;
+    chapter_end: number | null;
+    chapter_count: number | null;
+    display_name: string;
+  };
+  confidence: string;
+  warnings: string[];
+  files: Array<{
+    kind: "pdf" | "epub";
+    filename: string;
+    title?: string | null;
+    language?: string | null;
+    text_language?: string | null;
+    description?: string | null;
+    creator?: string | null;
+    chapter_detection: PipelineDetection;
+  }>;
+  possible_duplicates: Array<{
+    id: string;
+    english_title: string;
+    original_title: string;
+    slug: string;
+  }>;
+};
+
 export type ReasonAction = {
   title: string;
   description: string;
@@ -112,7 +157,6 @@ export type DataState<T> = {
 };
 
 export type CatalogModal =
-  | { kind: "create-title" }
   | { kind: "create-release"; title: Title }
   | { kind: "edit-title"; title: Title }
   | { kind: "edit-release"; release: Release }

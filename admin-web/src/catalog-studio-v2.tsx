@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "./api";
 import { Badge, ErrorBox, Header, Icon, Loading, date, useData, useToast } from "./admin-ui";
+import { CatalogPipeline } from "./catalog-pipeline";
 import { catalogMetadataActions } from "./catalog-studio-metadata-actions";
 import { catalogFileActions } from "./catalog-studio-file-actions";
-import { CleanupDialog, CreateReleaseDialog, CreateTitleDialog, EditReleaseDialog, EditTitleDialog, PreviewDialog, ReasonDialog } from "./catalog-studio-dialogs";
+import { CleanupDialog, CreateReleaseDialog, EditReleaseDialog, EditTitleDialog, PreviewDialog, ReasonDialog } from "./catalog-studio-dialogs";
 import { ReleaseDrawer, TitleWorkspace } from "./catalog-studio-workspaces";
 import "./catalog-studio-v2.css";
 import type { CatalogModal, FailedPublication, FileVersion, ReleaseDetail, TitleDetail, TitlePage } from "./catalog-studio-types";
@@ -21,12 +22,19 @@ function setCatalogHash(values: Record<string, string | number | null>) {
   window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#${params.toString()}`);
 }
 
+function publicationKind(value: string) {
+  if (value === "title") return "Публикация произведения";
+  if (value === "release") return "Публикация пакета глав";
+  return "Публикация в канале";
+}
+
 export function CatalogStudioView() {
   const [query, setQuery] = useState(() => hashValue("catalog_q"));
   const [status, setStatus] = useState(() => hashValue("catalog_status") || "all");
   const [page, setPage] = useState(() => Math.max(1, Number(hashValue("catalog_page")) || 1));
   const [selectedTitle, setSelectedTitle] = useState<string | null>(() => hashValue("title") || null);
   const [selectedRelease, setSelectedRelease] = useState<string | null>(() => hashValue("release") || null);
+  const [mode, setMode] = useState<"catalog" | "create">(() => hashValue("catalog_mode") === "create" ? "create" : "catalog");
   const [failedSelected, setFailedSelected] = useState<string[]>([]);
   const [modal, setModal] = useState<CatalogModal>(null);
   const [busy, setBusy] = useState(false);
@@ -48,7 +56,8 @@ export function CatalogStudioView() {
     catalog_page: page === 1 ? null : page,
     title: selectedTitle,
     release: selectedRelease,
-  }), [query, status, page, selectedTitle, selectedRelease]);
+    catalog_mode: mode === "create" ? "create" : null,
+  }), [query, status, page, selectedTitle, selectedRelease, mode]);
 
   async function refresh() {
     await Promise.all([list.reload(), detail.reload(), release.reload(), failed.reload()]);
@@ -65,22 +74,38 @@ export function CatalogStudioView() {
     finally { setBusy(false); }
   }
 
+  async function finishPipeline(titleId: string) {
+    setMode("catalog");
+    setSelectedTitle(titleId);
+    setSelectedRelease(null);
+    await list.reload();
+  }
+
+  function openExisting(titleId: string) {
+    setMode("catalog");
+    setSelectedTitle(titleId);
+    setSelectedRelease(null);
+  }
+
+  if (mode === "create") {
+    return <CatalogPipeline onCancel={() => setMode("catalog")} onComplete={finishPipeline} onOpenExisting={openExisting}/>;
+  }
+
   return <section className="page catalog-studio">
-    <Header title="Catalog Studio" description="Метаданные, публикации, обложки, версии файлов, preview и recovery." action={<div className="catalog-head-actions"><button disabled={busy} onClick={files.cleanupPreview}>Dry-run очистки</button><button className="primary" onClick={() => setModal({ kind: "create-title" })}>Новый тайтл</button></div>}/>
+    <Header title="Каталог и публикации" description="Произведения, пакеты глав, обложки, файлы и подготовка публикаций." action={<div className="catalog-head-actions"><button disabled={busy} onClick={files.cleanupPreview}>Проверить неиспользуемые файлы</button><button className="primary" onClick={() => setMode("create")}>Добавить произведение</button></div>}/>
     {list.error && <ErrorBox text={list.error}/>} 
-    <div className="catalog-toolbar"><label><Icon name="search"/><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Название, alias или slug" aria-label="Поиск тайтлов"/></label><select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} aria-label="Фильтр каталога"><option value="all">Все</option><option value="published">Опубликованные</option><option value="draft">Черновики</option><option value="ongoing">Продолжаются</option><option value="completed">Завершены</option><option value="hiatus">Пауза</option></select></div>
+    <div className="catalog-toolbar"><label><Icon name="search"/><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Название или другое известное имя" aria-label="Поиск произведений"/></label><select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} aria-label="Фильтр каталога"><option value="all">Все произведения</option><option value="published">Опубликованные</option><option value="draft">Черновики</option><option value="ongoing">Перевод продолжается</option><option value="completed">Перевод завершён</option><option value="hiatus">Перевод на паузе</option></select></div>
     <div className="catalog-layout">
       <div className="panel catalog-list">
-        <div className="catalog-list-head"><strong>Тайтлы</strong><span>{list.data?.total || 0}</span></div>
-        {list.loading ? <Loading label="Загружаем каталог…"/> : list.data?.items.length ? list.data.items.map((item) => <button className={`catalog-title-row${selectedTitle === item.id ? " active" : ""}`} key={item.id} onClick={() => { setSelectedTitle(item.id); setSelectedRelease(null); }} aria-current={selectedTitle === item.id ? "true" : undefined}><div><strong>{item.english_title}</strong><small>{item.original_title}</small></div><div><Badge value={item.is_published ? "completed" : "draft"}/><small>{item.release_count} пак.</small></div></button>) : <div className="catalog-empty compact"><strong>Тайтлы не найдены</strong><span>Измените поиск или фильтр.</span></div>}
-        <div className="catalog-pager"><button disabled={page <= 1} onClick={() => setPage(page - 1)}>Назад</button><span>{page}/{list.data?.pages || 1}</span><button disabled={page >= (list.data?.pages || 1)} onClick={() => setPage(page + 1)}>Далее</button></div>
+        <div className="catalog-list-head"><strong>Произведения</strong><span>{list.data?.total || 0}</span></div>
+        {list.loading ? <Loading label="Загружаем каталог…"/> : list.data?.items.length ? list.data.items.map((item) => <button className={`catalog-title-row${selectedTitle === item.id ? " active" : ""}`} key={item.id} onClick={() => { setSelectedTitle(item.id); setSelectedRelease(null); }} aria-current={selectedTitle === item.id ? "true" : undefined}><div><strong>{item.english_title}</strong><small>{item.original_title}</small></div><div><Badge value={item.is_published ? "completed" : "draft"}/><small>{item.release_count} пак.</small></div></button>) : <div className="catalog-empty compact"><strong>Произведения не найдены</strong><span>Измените поиск или фильтр.</span></div>}
+        <div className="catalog-pager"><button disabled={page <= 1} onClick={() => setPage(page - 1)}>Назад</button><span>{page} из {list.data?.pages || 1}</span><button disabled={page >= (list.data?.pages || 1)} onClick={() => setPage(page + 1)}>Далее</button></div>
       </div>
-      <div className="panel catalog-detail">{!selectedTitle ? <div className="catalog-empty"><Icon name="book" size={36}/><strong>Выберите тайтл</strong><span>Откроется рабочая карточка и история.</span></div> : detail.loading || !detail.data ? <Loading label="Загружаем тайтл…"/> : <TitleWorkspace data={detail.data} onEdit={() => setModal({ kind: "edit-title", title: detail.data!.title })} onPreview={() => files.preview("titles", detail.data!.title.id, detail.data!.title.english_title)} onCover={(file) => meta.replaceCover(detail.data!.title, file)} onPublication={() => meta.publication("titles", detail.data!.title, !detail.data!.title.is_published)} onNewRelease={() => setModal({ kind: "create-release", title: detail.data!.title })} onOpenRelease={setSelectedRelease} onRollback={(revision) => meta.rollback("titles", detail.data!.title.id, revision, detail.data!.title.updated_at)}/>}</div>
+      <div className="panel catalog-detail">{!selectedTitle ? <div className="catalog-empty"><Icon name="book" size={36}/><strong>Выберите произведение</strong><span>Здесь откроются данные, пакеты и история изменений.</span></div> : detail.loading || !detail.data ? <Loading label="Загружаем произведение…"/> : <TitleWorkspace data={detail.data} onEdit={() => setModal({ kind: "edit-title", title: detail.data!.title })} onPreview={() => files.preview("titles", detail.data!.title.id, detail.data!.title.english_title)} onCover={(file) => meta.replaceCover(detail.data!.title, file)} onPublication={() => meta.publication("titles", detail.data!.title, !detail.data!.title.is_published)} onNewRelease={() => setModal({ kind: "create-release", title: detail.data!.title })} onOpenRelease={setSelectedRelease} onRollback={(revision) => meta.rollback("titles", detail.data!.title.id, revision, detail.data!.title.updated_at)}/>}</div>
     </div>
-    <section className="catalog-recovery panel"><div className="catalog-section-head"><div><h3>Recovery публикаций</h3><p>Batch retry только после dry-run и с idempotency key.</p></div><button disabled={!failedSelected.length || busy} onClick={() => files.retryFailed(failedSelected)}>Повторить ({failedSelected.length})</button></div>{failed.loading ? <Loading label="Проверяем failed-публикации…"/> : failed.data?.length ? <div className="catalog-failed-list">{failed.data.map((item) => <label key={item.id}><input type="checkbox" checked={failedSelected.includes(item.id)} onChange={(event) => setFailedSelected((current) => event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id))}/><div><strong>{item.target_type} · {item.target_id}</strong><small>{item.error || "Неизвестная ошибка"}</small></div><span>{date(item.updated_at)}</span></label>)}</div> : <div className="catalog-empty compact"><strong>Неудачных публикаций нет</strong></div>}</section>
+    <section className="catalog-recovery panel"><div className="catalog-section-head"><div><h3>Неудачные публикации</h3><p>Можно проверить выбранные записи и безопасно вернуть их в очередь.</p></div><button disabled={!failedSelected.length || busy} onClick={() => files.retryFailed(failedSelected)}>Повторить выбранные ({failedSelected.length})</button></div>{failed.loading ? <Loading label="Проверяем публикации…"/> : failed.data?.length ? <div className="catalog-failed-list">{failed.data.map((item) => <label key={item.id}><input type="checkbox" checked={failedSelected.includes(item.id)} onChange={(event) => setFailedSelected((current) => event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id))}/><div><strong>{publicationKind(item.target_type)}</strong><small>{item.error || "Причина ошибки не указана"}</small></div><span>{date(item.updated_at)}</span></label>)}</div> : <div className="catalog-empty compact"><strong>Неудачных публикаций нет</strong></div>}</section>
 
     {selectedRelease && <ReleaseDrawer state={release} grouped={grouped} busy={busy} onClose={() => setSelectedRelease(null)} onEdit={(item) => setModal({ kind: "edit-release", release: item })} onPreview={(item) => files.preview("releases", item.id, item.chapter_label)} onPublication={(item) => meta.publication("releases", item, !item.is_published)} onUpload={files.upload} onActivate={files.activate} onRollback={(item, revision) => meta.rollback("releases", item.id, revision, item.updated_at)}/>} 
-    {modal?.kind === "create-title" && <CreateTitleDialog onClose={() => setModal(null)} onSubmit={meta.createTitle}/>} 
     {modal?.kind === "create-release" && <CreateReleaseDialog title={modal.title} onClose={() => setModal(null)} onSubmit={(event) => meta.createRelease(event, modal.title)}/>} 
     {modal?.kind === "edit-title" && <EditTitleDialog item={modal.title} onClose={() => setModal(null)} onSubmit={(event) => meta.saveTitle(event, modal.title)}/>} 
     {modal?.kind === "edit-release" && <EditReleaseDialog item={modal.release} onClose={() => setModal(null)} onSubmit={(event) => meta.saveRelease(event, modal.release)}/>} 
